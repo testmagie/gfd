@@ -393,6 +393,7 @@
     applyTheme();
     render();
     setupAutoSync();
+    startLivePolling();
   }
 
   async function saveState(silent = false){
@@ -461,6 +462,56 @@
     const done = items.filter(a=>statusBucket(a.status)==='done').length;
     const future = items.filter(a=>statusBucket(a.status)==='future').length;
     return {total, attention, hold, progress, done, future};
+  }
+
+  let livePollTimer = null;
+  let isPollingLive = false;
+
+  function startLivePolling(){
+    if(livePollTimer) clearInterval(livePollTimer);
+    livePollTimer = setInterval(async ()=>{
+      if(isPollingLive || !isBackendConnected) return;
+      
+      const hasModal = !!document.querySelector('.gcc-modal-overlay') || !!document.querySelector('#gcc-modal-container .gcc-modal');
+      const isEditing = document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
+
+      try {
+        isPollingLive = true;
+        const remote = await apiFetch('/api/data');
+        if(remote && (remote.lastUpdated !== state.lastUpdated || JSON.stringify(remote.settings?.companies) !== JSON.stringify(state.settings?.companies) || remote.actions?.length !== state.actions?.length)){
+          state = remote;
+          localStorage.setItem('gcc-data', JSON.stringify(state));
+          applyTheme();
+          if(!hasModal && !isEditing){
+            render();
+          }
+        }
+      } catch(err){
+        // silent polling catch
+      } finally {
+        isPollingLive = false;
+      }
+    }, 4000); // 4-second real-time auto-refresh
+
+    // Instant refresh when user switches back to the tab
+    if(!window._hasVisibilitySyncListener){
+      window._hasVisibilitySyncListener = true;
+      document.addEventListener('visibilitychange', async ()=>{
+        if(document.visibilityState === 'visible' && isBackendConnected && !isPollingLive){
+          try {
+            isPollingLive = true;
+            const remote = await apiFetch('/api/data');
+            if(remote && remote.lastUpdated !== state.lastUpdated){
+              state = remote;
+              localStorage.setItem('gcc-data', JSON.stringify(state));
+              applyTheme();
+              render();
+            }
+          } catch(e){}
+          finally { isPollingLive = false; }
+        }
+      });
+    }
   }
 
   function setupAutoSync(){
@@ -3855,9 +3906,18 @@ function onFormSubmit(e) {
           const i = +b.dataset.companyRemove;
           if(state.settings.companies.length <= 1){ Toast.error('Keep at least one company in your portfolio.'); return; }
           const co = state.settings.companies[i];
-          if(!confirm(`Remove company "${co.name}"? Existing action items stay tagged, but it will drop off the health overview and dropdowns.`)) return;
+          if(!confirm(`Remove company "${co.name}"? This will remove it from the health overview, dropdowns, and clear its items.`)) return;
           state.settings.companies.splice(i, 1);
-          await saveState(true);
+          if(state.actions){
+            state.actions = state.actions.filter(a => String(a.company||'').toLowerCase() !== String(co.id||'').toLowerCase() && String(a.company||'').toLowerCase() !== String(co.name||'').toLowerCase());
+          }
+          if(state.decisions){
+            state.decisions = state.decisions.filter(d => String(d.company||'').toLowerCase() !== String(co.id||'').toLowerCase() && String(d.company||'').toLowerCase() !== String(co.name||'').toLowerCase());
+          }
+          if(state.priorities){
+            state.priorities = state.priorities.filter(p => String(p.company||p.group||'').toLowerCase() !== String(co.id||'').toLowerCase() && String(p.company||p.group||'').toLowerCase() !== String(co.name||'').toLowerCase());
+          }
+          await saveState();
           Toast.success(`Company "${co.name}" removed.`);
           render();
         };
