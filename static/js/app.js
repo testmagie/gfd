@@ -94,14 +94,16 @@
 
   async function apiFetch(endpoint, options = {}){
     options.headers = options.headers || {};
-    const currentToken = sessionStorage.getItem('gcc_token') || localStorage.getItem('gcc_token') || (typeof window !== 'undefined' && window.GCC_TOKEN) || authToken || '';
-    if(currentToken){
+    if(!authToken){
+      authToken = sessionStorage.getItem('gcc_token') || localStorage.getItem('gcc_token') || '';
+    }
+    if(authToken){
       if(options.headers instanceof Headers){
-        options.headers.set('Authorization', `Bearer ${currentToken}`);
-        options.headers.set('X-Auth-Token', currentToken);
+        options.headers.set('Authorization', `Bearer ${authToken}`);
+        options.headers.set('X-Auth-Token', authToken);
       } else {
-        options.headers['Authorization'] = `Bearer ${currentToken}`;
-        options.headers['X-Auth-Token'] = currentToken;
+        options.headers['Authorization'] = `Bearer ${authToken}`;
+        options.headers['X-Auth-Token'] = authToken;
       }
     }
     try {
@@ -393,7 +395,6 @@
     applyTheme();
     render();
     setupAutoSync();
-    startLivePolling();
   }
 
   async function saveState(silent = false){
@@ -462,56 +463,6 @@
     const done = items.filter(a=>statusBucket(a.status)==='done').length;
     const future = items.filter(a=>statusBucket(a.status)==='future').length;
     return {total, attention, hold, progress, done, future};
-  }
-
-  let livePollTimer = null;
-  let isPollingLive = false;
-
-  function startLivePolling(){
-    if(livePollTimer) clearInterval(livePollTimer);
-    livePollTimer = setInterval(async ()=>{
-      if(isPollingLive || !isBackendConnected) return;
-      
-      const hasModal = !!document.querySelector('.gcc-modal-overlay') || !!document.querySelector('#gcc-modal-container .gcc-modal');
-      const isEditing = document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
-
-      try {
-        isPollingLive = true;
-        const remote = await apiFetch('/api/data');
-        if(remote && (remote.lastUpdated !== state.lastUpdated || JSON.stringify(remote.settings?.companies) !== JSON.stringify(state.settings?.companies) || remote.actions?.length !== state.actions?.length)){
-          state = remote;
-          localStorage.setItem('gcc-data', JSON.stringify(state));
-          applyTheme();
-          if(!hasModal && !isEditing){
-            render();
-          }
-        }
-      } catch(err){
-        // silent polling catch
-      } finally {
-        isPollingLive = false;
-      }
-    }, 4000); // 4-second real-time auto-refresh
-
-    // Instant refresh when user switches back to the tab
-    if(!window._hasVisibilitySyncListener){
-      window._hasVisibilitySyncListener = true;
-      document.addEventListener('visibilitychange', async ()=>{
-        if(document.visibilityState === 'visible' && isBackendConnected && !isPollingLive){
-          try {
-            isPollingLive = true;
-            const remote = await apiFetch('/api/data');
-            if(remote && remote.lastUpdated !== state.lastUpdated){
-              state = remote;
-              localStorage.setItem('gcc-data', JSON.stringify(state));
-              applyTheme();
-              render();
-            }
-          } catch(e){}
-          finally { isPollingLive = false; }
-        }
-      });
-    }
   }
 
   function setupAutoSync(){
@@ -682,7 +633,9 @@
         try {
           const formData = new FormData();
           formData.append('file', _stagedCredsFile);
-          const data = await apiFetch('/api/credentials/upload', { method: 'POST', body: formData });
+          const res = await fetch('/api/credentials/upload', { method: 'POST', body: formData });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || 'Upload failed');
           Toast.success(data.message || 'Credentials activated!');
           _stagedCredsFile = null;
           const stagedEl = document.getElementById('creds-staged-name');
@@ -761,7 +714,7 @@
       newCompanyName = ''
     } = options;
 
-    let appended = 0, updated = 0, skipped = 0, flagged = 0, deleted = 0, sheetsProcessed = 0;
+    let appended = 0, updated = 0, skipped = 0, flagged = 0, sheetsProcessed = 0;
     const conflicts = [];
     
     if(destination === 'create_new' && newCompanyName){
@@ -906,7 +859,7 @@
     await saveState(true);
     return {
       message: `Processed ${sheetsProcessed} sheet(s): ${appended} appended, ${updated} updated, ${skipped} skipped, ${flagged} flagged.`,
-      counts: { appended, updated, skipped, flagged, deleted, sheets_processed: sheetsProcessed },
+      counts: { appended, updated, skipped, flagged, sheets_processed: sheetsProcessed },
       conflicts
     };
   }
@@ -2095,7 +2048,6 @@
                 <label>Sync Strategy</label>
                 <select id="gs-sync-mode">
                   <option value="merge">Merge & Update</option>
-                  <option value="delete_merge">Delete & Merge</option>
                   <option value="replace">Replace All</option>
                 </select>
               </div>
@@ -2196,7 +2148,6 @@
               <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">Import Strategy</label>
               <select id="upload-mode-select">
                 <option value="merge">Merge & Update</option>
-                <option value="delete_merge">Delete & Merge</option>
                 <option value="append">Append Only (New IDs)</option>
                 <option value="replace">Replace All Existing</option>
               </select>
@@ -2260,7 +2211,7 @@
           </div>
 
           ${persistentUploadStatus && persistentUploadStatus.counts ? `
-          <div class="gcc-metrics-container">
+            <div class="gcc-metrics-container">
               <div class="gcc-metric-card appended">
                 <div class="gcc-metric-val">+${persistentUploadStatus.counts.appended || 0}</div>
                 <div class="gcc-metric-label">Appended</div>
@@ -2269,11 +2220,6 @@
                 <div class="gcc-metric-val">${persistentUploadStatus.counts.updated || 0}</div>
                 <div class="gcc-metric-label">Updated</div>
               </div>
-              ${(persistentUploadStatus.counts.deleted || 0) > 0 ? `
-              <div class="gcc-metric-card flagged" style="background:rgba(239,68,68,0.12);border-color:rgba(239,68,68,0.35);">
-                <div class="gcc-metric-val" style="color:#ef4444;">-${persistentUploadStatus.counts.deleted}</div>
-                <div class="gcc-metric-label">Removed</div>
-              </div>` : ''}
               <div class="gcc-metric-card skipped">
                 <div class="gcc-metric-val">${persistentUploadStatus.counts.skipped || 0}</div>
                 <div class="gcc-metric-label">Excluded</div>
@@ -3525,8 +3471,9 @@ function onFormSubmit(e) {
               if(dateEnd) formData.append('date_end', dateEnd);
               if(newCompanyName) formData.append('new_company_name', newCompanyName);
 
-              const json = await apiFetch('/api/upload', {method: 'POST', body: formData});
-              if(json && json.success){
+              const res = await fetch('/api/upload', {method: 'POST', body: formData});
+              const json = await res.json();
+              if(res.ok && json.success){
                 const latest = await apiFetch('/api/data');
                 state = latest;
                 localStorage.setItem('gcc-data', JSON.stringify(state));
@@ -3906,19 +3853,16 @@ function onFormSubmit(e) {
           const i = +b.dataset.companyRemove;
           if(state.settings.companies.length <= 1){ Toast.error('Keep at least one company in your portfolio.'); return; }
           const co = state.settings.companies[i];
-          if(!confirm(`Remove company "${co.name}"? This will remove it from the health overview, dropdowns, and clear its items.`)) return;
+          if(!confirm(`Remove company "${co.name}"? This will permanently delete all associated action items, decisions, and priorities across all tabs.`)) return;
           state.settings.companies.splice(i, 1);
-          if(state.actions){
-            state.actions = state.actions.filter(a => String(a.company||'').toLowerCase() !== String(co.id||'').toLowerCase() && String(a.company||'').toLowerCase() !== String(co.name||'').toLowerCase());
-          }
-          if(state.decisions){
-            state.decisions = state.decisions.filter(d => String(d.company||'').toLowerCase() !== String(co.id||'').toLowerCase() && String(d.company||'').toLowerCase() !== String(co.name||'').toLowerCase());
-          }
-          if(state.priorities){
-            state.priorities = state.priorities.filter(p => String(p.company||p.group||'').toLowerCase() !== String(co.id||'').toLowerCase() && String(p.company||p.group||'').toLowerCase() !== String(co.name||'').toLowerCase());
-          }
-          await saveState();
-          Toast.success(`Company "${co.name}" removed.`);
+          
+          // Remove all details associated with this company
+          if (state.actions) state.actions = state.actions.filter(a => a.company !== co.name && a.company !== co.id);
+          if (state.decisions) state.decisions = state.decisions.filter(d => d.company !== co.name && d.company !== co.id);
+          if (state.priorities) state.priorities = state.priorities.filter(p => p.group !== co.name && p.group !== co.id);
+          
+          await saveState(true);
+          Toast.success(`Company "${co.name}" and its details were removed.`);
           render();
         };
       });
@@ -4244,4 +4188,18 @@ function onFormSubmit(e) {
 
   // Initialize
   loadState();
+
+  // Polling for viewer auto-refresh
+  setInterval(async () => {
+    try {
+      const remote = await apiFetch('/api/data');
+      if (remote && remote.lastUpdated && state && remote.lastUpdated !== state.lastUpdated) {
+        state = remote;
+        localStorage.setItem('gcc-data', JSON.stringify(state));
+        render();
+      }
+    } catch(e) { 
+      // Ignore network errors for background polling
+    }
+  }, 5000);
 })();

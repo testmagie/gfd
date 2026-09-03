@@ -662,7 +662,7 @@ def normalize_priority_item(raw_dict: Dict[str, Any]) -> Optional[Dict[str, Any]
         "horizon": horizon
     }
 
-def sync_companies_and_statuses(state: Dict[str, Any], auto_add_companies: bool = True) -> Dict[str, Any]:
+def sync_companies_and_statuses(state: Dict[str, Any]) -> Dict[str, Any]:
     """Ensures state.settings contains all companies and statuses present in state.actions."""
     settings = state.setdefault('settings', {})
     companies = settings.setdefault('companies', [])
@@ -673,18 +673,16 @@ def sync_companies_and_statuses(state: Dict[str, Any], auto_add_companies: bool 
     existing_company_ids = {str(c['id']).lower(): c for c in companies if isinstance(c, dict) and 'id' in c}
     existing_status_set = set(statuses)
 
-    if auto_add_companies:
-        for action in state.get('actions', []):
-            comp_name = str(action.get('company', '')).strip()
-            if comp_name and comp_name.lower() not in existing_company_ids:
-                new_comp = {'id': comp_name, 'name': comp_name}
-                companies.append(new_comp)
-                existing_company_ids[comp_name.lower()] = new_comp
-                if comp_name not in company_colors:
-                    color_idx = len(companies) % len(PALETTE)
-                    company_colors[comp_name] = PALETTE[color_idx]
-
     for action in state.get('actions', []):
+        comp_name = str(action.get('company', '')).strip()
+        if comp_name and comp_name.lower() not in existing_company_ids:
+            new_comp = {'id': comp_name, 'name': comp_name}
+            companies.append(new_comp)
+            existing_company_ids[comp_name.lower()] = new_comp
+            if comp_name not in company_colors:
+                color_idx = len(companies) % len(PALETTE)
+                company_colors[comp_name] = PALETTE[color_idx]
+
         st_name = str(action.get('status', '')).strip()
         if st_name and st_name not in existing_status_set:
             statuses.append(st_name)

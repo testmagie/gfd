@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-09-03T06:18:52.140081+00:00",
+  "lastUpdated": "2026-09-03T05:20:48.334560+00:00",
   "settings": {
     "colors": {
       "attention": "#E5484D",
@@ -25,8 +25,7 @@
       "miraa": "#2EC4B6",
       "edT": "#3FA796",
       "pranik": "#FF9F1C",
-      "sabrin": "#b12ec2",
-      "Security Test": "#FF9F1C"
+      "sabrin": "#b12ec2"
     },
     "companies": [
       {
@@ -46,6 +45,10 @@
         "name": "abhi"
       },
       {
+        "id": "edT",
+        "name": "edT"
+      },
+      {
         "id": "miraa",
         "name": "miraa"
       },
@@ -56,10 +59,6 @@
       {
         "id": "arna",
         "name": "arna"
-      },
-      {
-        "id": "Security Test",
-        "name": "Security Test"
       }
     ],
     "statuses": [
@@ -938,6 +937,39 @@
       "founderDependency": "None",
       "due": "10-Mar",
       "comments": "Sathish, Aacharya & PC to collaborate with Rohith to build models and not use the old way of flight search"
+    },
+    {
+      "id": "a_4b031911",
+      "company": "edT",
+      "function": "People",
+      "item": "3 proposals given",
+      "status": "WIP",
+      "owner": "Rohan",
+      "founderDependency": "N",
+      "due": "27-Jan",
+      "comments": "3 proposals given"
+    },
+    {
+      "id": "a_31f13127",
+      "company": "edT",
+      "function": "Product",
+      "item": "Product",
+      "status": "WIP",
+      "owner": "",
+      "founderDependency": "None",
+      "due": "",
+      "comments": ""
+    },
+    {
+      "id": "a_7c94d53f",
+      "company": "edT",
+      "function": "People",
+      "item": "Decision",
+      "status": "Done",
+      "owner": "Prasad",
+      "founderDependency": "N",
+      "due": "",
+      "comments": ""
     },
     {
       "id": "a_d46bb7c4",
@@ -2805,61 +2837,6 @@
       "item": "Raghav has the data of UAE businesses- 1500k. 50% are contactable 100k",
       "status": "WIP",
       "owner": "",
-      "founderDependency": "None",
-      "due": "",
-      "comments": ""
-    },
-    {
-      "id": "a_ece69131",
-      "company": "Security Test",
-      "function": "Test",
-      "item": "Viewer write-access verification — delete me",
-      "status": "To Start",
-      "owner": "Viewer",
-      "founderDependency": "None",
-      "due": "",
-      "comments": ""
-    },
-    {
-      "id": "a_7c0b243f",
-      "company": "Security Test",
-      "function": "Test",
-      "item": "Viewer write-access verification — delete me",
-      "status": "To Start",
-      "owner": "Viewer",
-      "founderDependency": "None",
-      "due": "",
-      "comments": ""
-    },
-    {
-      "id": "a_9b2472af",
-      "company": "Security Test",
-      "function": "Test",
-      "item": "Viewer write-access verification — delete me",
-      "status": "To Start",
-      "owner": "Viewer",
-      "founderDependency": "None",
-      "due": "",
-      "comments": ""
-    },
-    {
-      "id": "a_48cf2840",
-      "company": "Security Test",
-      "function": "Test",
-      "item": "Viewer write-access verification — delete me",
-      "status": "To Start",
-      "owner": "Viewer",
-      "founderDependency": "None",
-      "due": "",
-      "comments": ""
-    },
-    {
-      "id": "a_d462c0b5",
-      "company": "Security Test",
-      "function": "Test",
-      "item": "Viewer write-access verification — delete me",
-      "status": "To Start",
-      "owner": "Viewer",
       "founderDependency": "None",
       "due": "",
       "comments": ""

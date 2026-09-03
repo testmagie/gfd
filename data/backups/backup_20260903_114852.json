@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-09-03T06:18:52.140081+00:00",
+  "lastUpdated": "2026-09-03T06:13:51.687443+00:00",
   "settings": {
     "colors": {
       "attention": "#E5484D",
@@ -2844,17 +2844,6 @@
     },
     {
       "id": "a_48cf2840",
-      "company": "Security Test",
-      "function": "Test",
-      "item": "Viewer write-access verification — delete me",
-      "status": "To Start",
-      "owner": "Viewer",
-      "founderDependency": "None",
-      "due": "",
-      "comments": ""
-    },
-    {
-      "id": "a_d462c0b5",
       "company": "Security Test",
       "function": "Test",
       "item": "Viewer write-access verification — delete me",

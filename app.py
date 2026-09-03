@@ -322,8 +322,7 @@ async def save_dashboard_data(request: Request):
         if not isinstance(new_state, dict):
             raise HTTPException(status_code=400, detail="Invalid state payload, expected JSON object")
 
-        # Ensure schema structure without resurrecting deleted companies
-        new_state = sync_companies_and_statuses(new_state, auto_add_companies=False)
+        # Ensure schema structure (Removed sync_companies_and_statuses so admin deletions persist)
         save_state(new_state)
         return {"success": True, "lastUpdated": new_state.get("lastUpdated")}
     except HTTPException:

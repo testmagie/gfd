@@ -15,52 +15,30 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+
 _supabase_client = None
 _supabase_admin_client = None
-
-def _get_supabase_credentials():
-    """Dynamically reads Supabase credentials from environment or .env file."""
-    load_dotenv(override=False)
-    url = (os.getenv("SUPABASE_URL") or "").strip()
-    key = (
-        os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        or os.getenv("SUPABASE_ANON_KEY")
-        or os.getenv("SUPABASE_KEY")
-        or ""
-    ).strip()
-
-    # If not found in memory, try reloading .env with override
-    if not url or not key:
-        load_dotenv(override=True)
-        url = (os.getenv("SUPABASE_URL") or "").strip()
-        key = (
-            os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-            or os.getenv("SUPABASE_ANON_KEY")
-            or os.getenv("SUPABASE_KEY")
-            or ""
-        ).strip()
-
-    if not url or "your-project-id" in url:
-        raise RuntimeError(
-            "SUPABASE_URL is not configured. "
-            "Add it to your .env file: SUPABASE_URL=https://xxxxx.supabase.co"
-        )
-    if not key or "your-service-role" in key:
-        raise RuntimeError(
-            "SUPABASE_SERVICE_ROLE_KEY is not configured. "
-            "Add it to your .env file."
-        )
-    return url, key
 
 
 def _get_supabase():
     """Returns a cached Supabase client (anon/user-level)."""
     global _supabase_client
-    url, key = _get_supabase_credentials()
     if _supabase_client is None:
+        if not SUPABASE_URL or "your-project-id" in SUPABASE_URL:
+            raise RuntimeError(
+                "SUPABASE_URL is not configured. "
+                "Add it to your .env file: SUPABASE_URL=https://xxxxx.supabase.co"
+            )
+        if not SUPABASE_SERVICE_ROLE_KEY or "your-service-role" in SUPABASE_SERVICE_ROLE_KEY:
+            raise RuntimeError(
+                "SUPABASE_SERVICE_ROLE_KEY is not configured. "
+                "Add it to your .env file."
+            )
         try:
-            from supabase import create_client
-            _supabase_client = create_client(url, key)
+            from supabase import create_client, Client
+            _supabase_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
         except ImportError:
             raise RuntimeError(
                 "supabase package not installed. Run: pip install supabase"
@@ -71,11 +49,14 @@ def _get_supabase():
 def _get_admin_client():
     """Returns a Supabase Admin client using the service role key."""
     global _supabase_admin_client
-    url, key = _get_supabase_credentials()
     if _supabase_admin_client is None:
+        if not SUPABASE_URL or "your-project-id" in SUPABASE_URL:
+            raise RuntimeError("SUPABASE_URL is not configured in .env")
+        if not SUPABASE_SERVICE_ROLE_KEY or "your-service-role" in SUPABASE_SERVICE_ROLE_KEY:
+            raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is not configured in .env")
         try:
             from supabase import create_client
-            _supabase_admin_client = create_client(url, key)
+            _supabase_admin_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
         except ImportError:
             raise RuntimeError("supabase package not installed. Run: pip install supabase")
     return _supabase_admin_client
