@@ -93,10 +93,35 @@ app.add_middleware(
 
 @app.middleware("http")
 async def require_admin_for_mutations(request: Request, call_next):
-    """Enforce server-side RBAC for every state-changing dashboard API."""
-    public_paths = {"/api/auth/login", "/api/auth/logout", "/api/webhook", "/api/webhooks/inbound"}
-    if request.url.path.startswith("/api/") and request.method in {"POST", "PUT", "PATCH", "DELETE"} and request.url.path not in public_paths:
-        _require_admin(request)
+    """Enforce server-side RBAC for every state-changing dashboard API.
+
+    All state-changing /api endpoints are admin-only unless explicitly
+    listed as public webhook/auth endpoints. Authentication and authorization
+    failures are returned as proper HTTP responses instead of becoming 500s.
+    """
+    public_paths = {
+        "/api/auth/login",
+        "/api/auth/logout",
+        "/api/webhook",
+        "/api/webhooks/inbound",
+    }
+
+    is_api_mutation = (
+        request.url.path.startswith("/api/")
+        and request.method in {"POST", "PUT", "PATCH", "DELETE"}
+        and request.url.path not in public_paths
+    )
+
+    if is_api_mutation:
+        try:
+            _require_admin(request)
+        except HTTPException as exc:
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={"detail": exc.detail},
+            )
+
     return await call_next(request)
 
 def _validate_state_payload(state: Dict) -> None:
