@@ -60,9 +60,15 @@ class TestCEODashboardBackend(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data.get('status'), 'healthy')
-        self.assertIn('totalActions', data)
-        self.assertIn('totalDecisions', data)
-        self.assertIn('totalPriorities', data)
+
+        # Detailed status with counts is on /api/status
+        res_status = self.client.get('/api/status')
+        self.assertEqual(res_status.status_code, 200)
+        status_data = res_status.json()
+        self.assertEqual(status_data.get('status'), 'healthy')
+        self.assertIn('totalActions', status_data)
+        self.assertIn('totalDecisions', status_data)
+        self.assertIn('totalPriorities', status_data)
 
     def test_get_data_endpoint(self):
         response = self.client.get('/api/data')

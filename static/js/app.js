@@ -367,6 +367,44 @@
     setupAutoSync();
   }
 
+  // Admin event-driven refresh: called after every successful admin mutation
+  let isReloadingData = false;
+  async function reloadDashboardData(){
+    if(!isAdmin() || isReloadingData) return;
+    isReloadingData = true;
+    try {
+      const remote = await apiFetch('/api/data');
+      if(remote){
+        state = remote;
+        const d = defaultSettings();
+        state.settings = Object.assign({}, d, state.settings);
+        state.settings.colors = Object.assign({}, d.colors, state.settings.colors);
+        state.settings.companyColors = Object.assign({}, d.companyColors, state.settings.companyColors);
+        applyTheme();
+        localStorage.setItem('gcc-data', JSON.stringify(state));
+        render();
+      }
+    } catch(err){
+      console.error('[admin] Failed to reload dashboard data:', err);
+    } finally {
+      isReloadingData = false;
+    }
+  }
+
+  // Viewer-only: apply remote data when admin changes are detected
+  async function applyRemoteIfChanged(remote){
+    if(!remote || !remote.lastUpdated) return;
+    if(state && remote.lastUpdated === state.lastUpdated) return;
+    state = remote;
+    const d = defaultSettings();
+    state.settings = Object.assign({}, d, state.settings);
+    state.settings.colors = Object.assign({}, d.colors, state.settings.colors);
+    state.settings.companyColors = Object.assign({}, d.companyColors, state.settings.companyColors);
+    applyTheme();
+    localStorage.setItem('gcc-data', JSON.stringify(state));
+    render();
+  }
+
   async function saveState(silent = false){
     state.lastUpdated = new Date().toISOString();
     localStorage.setItem('gcc-data', JSON.stringify(state));
@@ -379,6 +417,9 @@
           body: JSON.stringify(state)
         });
         if(!silent) Toast.success('Saved to server.');
+        if(isAdmin()){
+          await reloadDashboardData();
+        }
       } catch(e) {
         if(!silent) Toast.info('Saved locally (Server offline).');
       }
@@ -2930,60 +2971,60 @@ function onFormSubmit(e) {
   }
 
   function wireView(){
-    if(!isAdmin()){
-      // Viewer mode: no editing permissions
-      return;
-    }
-    // Universal Quick Status Picker Trigger
-    document.querySelectorAll('[data-quick-status]').forEach(badge=>{
-      badge.onclick = (e)=>{
-        e.stopPropagation();
-        const type = badge.dataset.quickStatus;
-        const itemId = badge.dataset.itemId;
+    // Universal Quick Status Picker Trigger (Admin only)
+    if(isAdmin()){
+      document.querySelectorAll('[data-quick-status]').forEach(badge=>{
+        badge.onclick = (e)=>{
+          e.stopPropagation();
+          const type = badge.dataset.quickStatus;
+          const itemId = badge.dataset.itemId;
 
-        if(type === 'action'){
-          const a = state.actions.find(x=>x.id === itemId);
-          if(!a) return;
-          showStatusQuickPicker(badge, a.status, async (newStatus)=>{
-            a.status = newStatus;
-            await saveState(true);
-            Toast.success(`Status updated to ${newStatus}`);
-            render();
-          });
-        } else if(type === 'decision'){
-          const d = state.decisions.find(x=>x.id === itemId);
-          if(!d) return;
-          showStatusQuickPicker(badge, d.status, async (newStatus)=>{
-            d.status = newStatus;
-            await saveState(true);
-            Toast.success(`Status updated to ${newStatus}`);
-            render();
-          });
-        }
-      };
-    });
+          if(type === 'action'){
+            const a = state.actions.find(x=>x.id === itemId);
+            if(!a) return;
+            showStatusQuickPicker(badge, a.status, async (newStatus)=>{
+              a.status = newStatus;
+              await saveState(true);
+              Toast.success(`Status updated to ${newStatus}`);
+              render();
+            });
+          } else if(type === 'decision'){
+            const d = state.decisions.find(x=>x.id === itemId);
+            if(!d) return;
+            showStatusQuickPicker(badge, d.status, async (newStatus)=>{
+              d.status = newStatus;
+              await saveState(true);
+              Toast.success(`Status updated to ${newStatus}`);
+              render();
+            });
+          }
+        };
+      });
+    }
 
     if(view==='overview'){
-      document.querySelectorAll('[data-edit-action]').forEach(el=>{
-        el.onclick = (e)=>{
-          if(e.target.closest('[data-quick-status]')) return;
-          openEditActionModal(el.dataset.editAction);
-        };
-      });
+      if(isAdmin()){
+        document.querySelectorAll('[data-edit-action]').forEach(el=>{
+          el.onclick = (e)=>{
+            if(e.target.closest('[data-quick-status]')) return;
+            openEditActionModal(el.dataset.editAction);
+          };
+        });
 
-      document.querySelectorAll('[data-edit-decision]').forEach(el=>{
-        el.onclick = (e)=>{
-          if(e.target.closest('[data-quick-status]')) return;
-          openEditDecisionModal(el.dataset.editDecision);
-        };
-      });
+        document.querySelectorAll('[data-edit-decision]').forEach(el=>{
+          el.onclick = (e)=>{
+            if(e.target.closest('[data-quick-status]')) return;
+            openEditDecisionModal(el.dataset.editDecision);
+          };
+        });
 
-      const spotlightBtn = document.getElementById('edit-spotlight');
-      if(spotlightBtn) spotlightBtn.onclick = (e)=>{
-        e.stopPropagation();
-        view = 'settings';
-        render();
-      };
+        const spotlightBtn = document.getElementById('edit-spotlight');
+        if(spotlightBtn) spotlightBtn.onclick = (e)=>{
+          e.stopPropagation();
+          view = 'settings';
+          render();
+        };
+      }
 
       // Non-destructive search input handling: restores cursor position & focus
       const oq = document.getElementById('f-overview-q');
@@ -3126,8 +3167,25 @@ function onFormSubmit(e) {
         };
       }
 
-      const addActBtn = document.getElementById('btn-open-add-action');
-      if(addActBtn) addActBtn.onclick = openAddActionModal;
+      if(isAdmin()){
+        const addActBtn = document.getElementById('btn-open-add-action');
+        if(addActBtn) addActBtn.onclick = openAddActionModal;
+
+        document.querySelectorAll('[data-edit-action]').forEach(btn=>{
+          btn.onclick = (e)=>{
+            e.stopPropagation();
+            openEditActionModal(btn.dataset.editAction);
+          };
+        });
+
+        document.querySelectorAll('[data-hide-action]').forEach(btn=>{
+          btn.onclick = async (e)=>{
+            e.stopPropagation();
+            const a = state.actions.find(x=>x.id===btn.dataset.hideAction);
+            if(a){ a.hidden = !a.hidden; await saveState(true); render(); }
+          };
+        });
+      }
 
       const fq = document.getElementById('f-q');
       if(fq){
@@ -3163,46 +3221,51 @@ function onFormSubmit(e) {
               <tr data-row-id="${a.id}" class="${emphClass(a.status)}">
                 ${visibleCols.map(c=>{
                   if(c.key==='company') return `<td><span class="gcc-co-tag" style="background:${companyColor(a.company)}22;color:${companyColor(a.company)}">${escapeHtml(a.company)}</span></td>`;
-                  if(c.key==='status') return `<td><span class="gcc-a-status" data-quick-status="action" data-item-id="${a.id}" style="background:${soft};color:${solid};">${escapeHtml(a.status)} ${icon('chevronDown')}</span></td>`;
+                  if(c.key==='status') return `<td><span class="gcc-a-status" ${isAdmin()?`data-quick-status="action" data-item-id="${a.id}" style="cursor:pointer;background:${soft};color:${solid};"`:`style="background:${soft};color:${solid};"`}>${escapeHtml(a.status)}${isAdmin()?` ${icon('chevronDown')}`:''}</span></td>`;
                   if(c.key==='owner') return `<td class="owner">${escapeHtml(a.owner||'—')}</td>`;
                   if(c.key==='founderDependency') return `<td>${escapeHtml(a.founderDependency||'—')}</td>`;
                   if(c.key==='comments') return `<td style="color:var(--text-muted);font-size:11.5px;">${escapeHtml(a.comments||'—')}</td>`;
                   if(c.key==='item') return `<td style="font-weight:500;">${escapeHtml(a.item)}</td>`;
                   return `<td>${escapeHtml(a[c.key]||'—')}</td>`;
                 }).join('')}
+                ${isAdmin() ? `
                 <td style="text-align:right;white-space:nowrap;">
                   <button class="gcc-btn secondary" data-edit-action="${a.id}" title="Edit item" style="padding:3px 6px;font-size:10px;">${icon('edit')}</button>
                   <button class="gcc-btn secondary" data-hide-action="${a.id}" title="${a.hidden?'Unhide':'Hide'} row" style="padding:3px 6px;font-size:10px;">${a.hidden?icon('eye'):icon('eyeOff')}</button>
-                </td>
+                </td>` : ''}
               </tr>`;
             }).join('') || '<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text-muted);">No matching action items found.</td></tr>';
             wireView();
           }
         };
       }
-
-      document.querySelectorAll('[data-edit-action]').forEach(btn=>{
-        btn.onclick = (e)=>{
-          e.stopPropagation();
-          openEditActionModal(btn.dataset.editAction);
-        };
-      });
-
-      document.querySelectorAll('[data-hide-action]').forEach(btn=>{
-        btn.onclick = async (e)=>{
-          e.stopPropagation();
-          const a = state.actions.find(x=>x.id===btn.dataset.hideAction);
-          if(a){ a.hidden = !a.hidden; await saveState(true); render(); }
-        };
-      });
     }
 
     if(view==='decisions'){
-      document.getElementById('f-decisions-owner').onchange = e=>{filters.decisions.owner=e.target.value; render();};
-      document.getElementById('f-decisions-show-hidden').onchange = e=>{filters.decisions.showHidden=e.target.checked; render();};
+      const fDecOwner = document.getElementById('f-decisions-owner');
+      if(fDecOwner) fDecOwner.onchange = e=>{filters.decisions.owner=e.target.value; render();};
+      const fDecHidden = document.getElementById('f-decisions-show-hidden');
+      if(fDecHidden) fDecHidden.onchange = e=>{filters.decisions.showHidden=e.target.checked; render();};
       
-      const addDecBtn = document.getElementById('btn-open-add-decision');
-      if(addDecBtn) addDecBtn.onclick = openAddDecisionModal;
+      if(isAdmin()){
+        const addDecBtn = document.getElementById('btn-open-add-decision');
+        if(addDecBtn) addDecBtn.onclick = openAddDecisionModal;
+
+        document.querySelectorAll('[data-edit-decision]').forEach(btn=>{
+          btn.onclick = (e)=>{
+            e.stopPropagation();
+            openEditDecisionModal(btn.dataset.editDecision);
+          };
+        });
+
+        document.querySelectorAll('[data-hide-decision]').forEach(btn=>{
+          btn.onclick = async (e)=>{
+            e.stopPropagation();
+            const d = state.decisions.find(x=>x.id===btn.dataset.hideDecision);
+            if(d){ d.hidden = !d.hidden; await saveState(true); render(); }
+          };
+        });
+      }
 
       const fdq = document.getElementById('f-decisions-q');
       if(fdq){
@@ -3225,41 +3288,33 @@ function onFormSubmit(e) {
               return `
               <tr data-row-id="${d.id}" class="${emphClass(d.status)}">
                 ${visibleCols.map(c=>{
-                  if(c.key==='status') return `<td><span class="gcc-a-status" data-quick-status="decision" data-item-id="${d.id}" style="background:${soft};color:${solid};">${escapeHtml(d.status)} ${icon('chevronDown')}</span></td>`;
+                  if(c.key==='status') return `<td><span class="gcc-a-status" ${isAdmin()?`data-quick-status="decision" data-item-id="${d.id}" style="cursor:pointer;background:${soft};color:${solid};"`:`style="background:${soft};color:${solid};"`}>${escapeHtml(d.status)}${isAdmin()?` ${icon('chevronDown')}`:''}</span></td>`;
                   if(c.key==='decision') return `<td style="font-weight:600;color:var(--table-text);">${escapeHtml(d.decision)}</td>`;
                   if(c.key==='impact') return `<td style="color:var(--attention);font-size:12px;">${escapeHtml(d.impact||'—')}</td>`;
                   return `<td>${escapeHtml(d[c.key]||'—')}</td>`;
                 }).join('')}
+                ${isAdmin() ? `
                 <td style="text-align:right;white-space:nowrap;">
                   <button class="gcc-btn secondary" data-edit-decision="${d.id}" title="Edit decision" style="padding:3px 6px;font-size:10px;">${icon('edit')}</button>
                   <button class="gcc-btn secondary" data-hide-decision="${d.id}" title="${d.hidden?'Unhide':'Hide'} row" style="padding:3px 6px;font-size:10px;">${d.hidden?icon('eye'):icon('eyeOff')}</button>
-                </td>
+                </td>` : ''}
               </tr>`;
             }).join('') || '<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text-muted);">No decisions found.</td></tr>';
             wireView();
           }
         };
       }
-
-      document.querySelectorAll('[data-edit-decision]').forEach(btn=>{
-        btn.onclick = (e)=>{
-          e.stopPropagation();
-          openEditDecisionModal(btn.dataset.editDecision);
-        };
-      });
-
-      document.querySelectorAll('[data-hide-decision]').forEach(btn=>{
-        btn.onclick = async (e)=>{
-          e.stopPropagation();
-          const d = state.decisions.find(x=>x.id===btn.dataset.hideDecision);
-          if(d){ d.hidden = !d.hidden; await saveState(true); render(); }
-        };
-      });
     }
 
     if(view==='priorities'){
-      const addPrioBtn = document.getElementById('btn-open-add-priority');
-      if(addPrioBtn) addPrioBtn.onclick = openAddPriorityModal;
+      if(isAdmin()){
+        const addPrioBtn = document.getElementById('btn-open-add-priority');
+        if(addPrioBtn) addPrioBtn.onclick = openAddPriorityModal;
+
+        document.querySelectorAll('[data-edit-priority]').forEach(el=>{
+          el.onclick = ()=> openEditPriorityModal(el.dataset.editPriority);
+        });
+      }
 
       const fpq = document.getElementById('f-priorities-q');
       if(fpq){
@@ -3285,7 +3340,7 @@ function onFormSubmit(e) {
                   ${escapeHtml(g)}
                 </div>
                 ${groups[g].map(p=>`
-                  <div class="gcc-prio-item" data-edit-priority="${p.id}">
+                  <div class="gcc-prio-item" ${isAdmin()?`data-edit-priority="${p.id}"`:''}>
                     <div>
                       <div style="font-weight:600;color:var(--table-text);margin-bottom:3px;">
                         <span style="font-family:var(--font-mono);color:var(--progress);margin-right:6px;">${escapeHtml(p.priority||'1.0')}</span>
@@ -3294,9 +3349,10 @@ function onFormSubmit(e) {
                       <div class="gcc-prio-why">${escapeHtml(p.why||'')}</div>
                     </div>
                     <div class="gcc-prio-horizon">${escapeHtml(p.horizon||'')}</div>
+                    ${isAdmin() ? `
                     <div style="text-align:right;">
                       <button class="gcc-btn secondary" style="padding:3px 6px;font-size:10px;" title="Edit priority">${icon('edit')}</button>
-                    </div>
+                    </div>` : ''}
                   </div>
                 `).join('')}
               </div>
@@ -3305,10 +3361,6 @@ function onFormSubmit(e) {
           }
         };
       }
-
-      document.querySelectorAll('[data-edit-priority]').forEach(el=>{
-        el.onclick = ()=> openEditPriorityModal(el.dataset.editPriority);
-      });
     }
 
     if(view==='data'){
@@ -4162,17 +4214,27 @@ function onFormSubmit(e) {
   // Initialize
   loadState();
 
-  // Polling for viewer auto-refresh
-  setInterval(async () => {
-    try {
-      const remote = await apiFetch('/api/data');
-      if (remote && remote.lastUpdated && state && remote.lastUpdated !== state.lastUpdated) {
-        state = remote;
-        localStorage.setItem('gcc-data', JSON.stringify(state));
-        render();
+  // Viewer-only: lightweight visibility-aware poll (every 15 seconds)
+  // Fires ONLY when the browser tab is visible and the user is NOT an admin.
+  // Re-renders ONLY if the admin has changed data (lastUpdated differs).
+  // This is the only way viewers can detect admin changes without a manual refresh.
+  let viewerPollTimer = null;
+  function startViewerPoll(){
+    if(isAdmin()) return;  // Admins use event-driven refresh, not polling
+    if(viewerPollTimer) return;  // Never create duplicate intervals
+    viewerPollTimer = setInterval(async () => {
+      if(document.hidden) return;  // Pause when tab is in the background
+      try {
+        const remote = await apiFetch('/api/data');
+        await applyRemoteIfChanged(remote);
+      } catch(e) {
+        // Ignore transient network errors silently
       }
-    } catch(e) { 
-      // Ignore network errors for background polling
-    }
-  }, 5000);
+    }, 15000);
+  }
+
+  // Start viewer poll after loadState resolves (give auth a moment to settle)
+  setTimeout(() => {
+    if(!isAdmin()) startViewerPoll();
+  }, 2000);
 })();

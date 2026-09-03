@@ -7,8 +7,9 @@ Handles:
   - Role assignment via Supabase user_metadata
 """
 import os
+import time
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -111,18 +112,35 @@ def authenticate_user(email: str, password: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+_token_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+TOKEN_CACHE_TTL = 60  # Cache session profile for 60 seconds to eliminate redundant Supabase network calls
+
+
 def verify_session_token(token: str) -> Optional[Dict[str, Any]]:
     """
     Verifies a Supabase JWT access token.
+    Caches the verified profile in backend memory for 60 seconds to prevent
+    redundant external HTTPS calls to Supabase Auth on every request.
     Returns user profile dict on success, None if invalid/expired.
     """
     if not token:
         return None
+
+    now = time.time()
+    cached = _token_cache.get(token)
+    if cached:
+        cached_time, user_data = cached
+        if now - cached_time < TOKEN_CACHE_TTL:
+            return user_data
+        else:
+            _token_cache.pop(token, None)
+
     try:
         client = _get_supabase()
         response = client.auth.get_user(token)
 
         if not response or not response.user:
+            _token_cache.pop(token, None)
             return None
 
         user = response.user
@@ -130,16 +148,19 @@ def verify_session_token(token: str) -> Optional[Dict[str, Any]]:
         role = metadata.get("role", "viewer")
         name = metadata.get("name", (user.email or "").split("@")[0].title())
 
-        return {
+        user_data = {
             "email": user.email,
             "name": name,
             "role": role,
             "user_id": str(user.id)
         }
+        _token_cache[token] = (now, user_data)
+        return user_data
     except RuntimeError:
         raise
     except Exception as e:
         logger.debug(f"Token verification failed: {e}")
+        _token_cache.pop(token, None)
         return None
 
 
@@ -147,6 +168,7 @@ def revoke_session(token: str) -> bool:
     """Signs out the user from Supabase (invalidates the JWT)."""
     if not token:
         return True
+    _token_cache.pop(token, None)
     try:
         client = _get_supabase()
         client.auth.sign_out()
@@ -261,6 +283,7 @@ def admin_update_user_role(user_id: str, role: str) -> Dict[str, Any]:
         if not response or not response.user:
             return {"success": False, "error": "User not found"}
 
+        _token_cache.clear()
         return {"success": True, "user_id": user_id, "new_role": role}
 
     except RuntimeError as e:
