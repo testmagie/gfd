@@ -181,9 +181,9 @@
 
   async function performLogout(){
     try {
-      if(isBackendConnected && authToken){
-        await apiFetch('/api/auth/logout', { method: 'POST' });
-      }
+      // The session token is HttpOnly, so JavaScript cannot inspect it. Always
+      // ask the server to clear the session cookie before navigating away.
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
     } catch(e){}
     authToken = '';
     currentUser = null;
