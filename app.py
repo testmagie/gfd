@@ -51,6 +51,7 @@ from services.data_validator import (
 )
 from services.auth_service import (
     authenticate_user,
+    refresh_session,
     verify_session_token,
     revoke_session,
     admin_create_user,
@@ -100,6 +101,7 @@ async def require_admin_for_mutations(request: Request, call_next):
     """
     public_paths = {
         "/api/auth/login",
+        "/api/auth/refresh",
         "/api/auth/logout",
         "/api/webhook",
         "/api/webhooks/inbound",
@@ -932,6 +934,7 @@ async def login_api(request: Request):
     from fastapi.responses import JSONResponse
     response = {
         "success": True,
+        "refresh_token": user["refresh_token"],
         "user": {
             "email": user["email"],
             "name": user["name"],
@@ -942,6 +945,37 @@ async def login_api(request: Request):
     result = JSONResponse(response)
     # Secure cookies cannot be sent by browsers over http://localhost. Keep the
     # production default secure; set COOKIE_SECURE=false only for local HTTP.
+    result.set_cookie("gcc_session", user["token"], httponly=True, secure=os.getenv("COOKIE_SECURE", "false").lower() == "true", samesite="lax", max_age=60 * 60)
+    return result
+
+
+@app.post("/api/auth/refresh")
+async def refresh_auth_session(request: Request):
+    """Rotates an expired Supabase session using the browser's refresh token."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+
+    try:
+        user = refresh_session(str(data.get("refresh_token") or ""))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Session refresh failed. Please log in again.")
+
+    from fastapi.responses import JSONResponse
+    result = JSONResponse({
+        "success": True,
+        "refresh_token": user["refresh_token"],
+        "user": {
+            "email": user["email"],
+            "name": user["name"],
+            "role": user["role"],
+            "user_id": user.get("user_id", ""),
+        },
+    })
     result.set_cookie("gcc_session", user["token"], httponly=True, secure=os.getenv("COOKIE_SECURE", "false").lower() == "true", samesite="lax", max_age=60 * 60)
     return result
 

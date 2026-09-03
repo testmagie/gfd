@@ -112,6 +112,34 @@ def authenticate_user(email: str, password: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def refresh_session(refresh_token: str) -> Optional[Dict[str, Any]]:
+    """Exchanges a Supabase refresh token for a rotated authenticated session."""
+    if not refresh_token:
+        return None
+
+    try:
+        response = _get_supabase().auth.refresh_session(refresh_token)
+        if not response or not response.session or not response.user:
+            return None
+
+        user = response.user
+        session = response.session
+        metadata = user.user_metadata or {}
+        return {
+            "token": session.access_token,
+            "refresh_token": session.refresh_token,
+            "email": user.email,
+            "name": metadata.get("name", (user.email or "").split("@")[0].title()),
+            "role": metadata.get("role", "viewer"),
+            "user_id": str(user.id),
+        }
+    except RuntimeError:
+        raise
+    except Exception as e:
+        logger.info("Session refresh failed: %s", e)
+        return None
+
+
 _token_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
 TOKEN_CACHE_TTL = 60  # Cache session profile for 60 seconds to eliminate redundant Supabase network calls
 
@@ -291,4 +319,3 @@ def admin_update_user_role(user_id: str, role: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error updating role for {user_id}: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
-

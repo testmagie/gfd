@@ -76,6 +76,8 @@
   let stagedFiles = [];
   let persistentUploadStatus = null;
   let activeStatusDropdown = null;
+  const REFRESH_TOKEN_KEY = 'gcc_refresh_token';
+  let refreshInFlight = null;
 
   // Authentication State
   // Authentication is carried by the HttpOnly gcc_session cookie, never JavaScript-readable storage.
@@ -92,17 +94,67 @@
     return !isAdmin();
   }
 
-  async function apiFetch(endpoint, options = {}){
-    options.headers = options.headers || {};
+  function storeRefreshToken(refreshToken){
+    if(!refreshToken) return;
+    sessionStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  }
+
+  function clearStoredSession(){
+    sessionStorage.removeItem('gcc_user');
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  }
+
+  function redirectToLogin(){
+    clearStoredSession();
+    window.location.href = '/login';
+  }
+
+  async function tryRefreshToken(){
+    const refreshToken = sessionStorage.getItem(REFRESH_TOKEN_KEY) || localStorage.getItem(REFRESH_TOKEN_KEY);
+    if(!refreshToken) return false;
+    if(refreshInFlight) return refreshInFlight;
+
+    refreshInFlight = (async ()=>{
+      try {
+        const res = await fetch('/api/auth/refresh', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({refresh_token: refreshToken})
+        });
+        if(!res.ok) return false;
+        const data = await res.json();
+        if(!data.success || !data.refresh_token) return false;
+        storeRefreshToken(data.refresh_token);
+        if(data.user){
+          currentUser = data.user;
+          sessionStorage.setItem('gcc_user', JSON.stringify(currentUser));
+        }
+        return true;
+      } catch(e) {
+        return false;
+      } finally {
+        refreshInFlight = null;
+      }
+    })();
+    return refreshInFlight;
+  }
+
+  async function apiFetch(endpoint, options = {}, retriedAfterRefresh = false){
+    options = {...options, headers: {...(options.headers || {})}};
     try {
-      const res = await fetch(endpoint, options);
+      const res = await fetch(endpoint, {...options, credentials: options.credentials || 'same-origin'});
       if (res.ok) {
         isBackendConnected = true;
         return await res.json();
       }
-      if(res.status === 401 && endpoint !== '/api/auth/login'){
-        sessionStorage.removeItem('gcc_user');
-        window.location.href = '/login';
+      if(res.status === 401 && endpoint !== '/api/auth/login' && endpoint !== '/api/auth/refresh'){
+        if(!retriedAfterRefresh && await tryRefreshToken()){
+          return apiFetch(endpoint, options, true);
+        }
+        redirectToLogin();
       }
       let errText = `HTTP ${res.status}: ${res.statusText}`;
       try {
@@ -157,6 +209,7 @@
       if(res && res.success){
         currentUser = res.user;
         sessionStorage.setItem('gcc_user', JSON.stringify(currentUser));
+        storeRefreshToken(res.refresh_token);
         if(isViewer()){
           document.body.classList.add('gcc-viewer-mode');
         } else {
@@ -177,7 +230,7 @@
     } catch(e){}
     currentUser = null;
     sessionUnlocked = false;
-    sessionStorage.removeItem('gcc_user');
+    clearStoredSession();
     window.location.href = '/login';
   }
 
@@ -241,6 +294,7 @@
       googleSheets: {
         sheetId: '',
         target: 'all',
+        mode: 'merge',
         autoSyncIntervalMinutes: 0,
         lastSyncTime: null,
         syncStatus: 'idle',
@@ -484,10 +538,10 @@
     }
   }
 
-  async function syncGoogleSheets(interactive = true){
+  async function syncGoogleSheets(interactive = true, selectedMode = null){
     const sheetIdInput = document.getElementById('gs-sheet-id');
     const sheetId = sheetIdInput ? sheetIdInput.value.trim() : state.settings.googleSheets.sheetId;
-    const mode = (document.getElementById('gs-sync-mode') && document.getElementById('gs-sync-mode').value) || 'merge';
+    const mode = selectedMode || (document.getElementById('gs-sync-mode') && document.getElementById('gs-sync-mode').value) || state.settings.googleSheets.mode || 'merge';
     const target = (document.getElementById('gs-sync-target') && document.getElementById('gs-sync-target').value) || state.settings.googleSheets.target || 'all';
 
     if(!sheetId && interactive){
@@ -725,8 +779,16 @@
       newCompanyName = ''
     } = options;
 
-    let appended = 0, updated = 0, skipped = 0, flagged = 0, sheetsProcessed = 0;
+    let appended = 0, updated = 0, skipped = 0, flagged = 0, deleted = 0, sheetsProcessed = 0;
     const conflicts = [];
+    const matched = { actions: new Set(), decisions: new Set(), priorities: new Set() };
+    // Delete & Merge always protects dashboard changes; incoming values only fill blanks.
+    const effectiveConflictStrategy = mode === 'delete_merge' ? 'existing_wins' : conflictStrategy;
+    const fillBlankFields = (existing, incoming) => {
+      Object.entries(incoming).forEach(([key, value]) => {
+        if(key !== 'id' && !existing[key] && value) existing[key] = value;
+      });
+    };
     
     if(destination === 'create_new' && newCompanyName){
       const compId = newCompanyName.toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -785,18 +847,20 @@
               };
 
               const existing = state.decisions.find(d=> d.decision.toLowerCase().replace(/[^a-z0-9]/g,'') === norm.decision.toLowerCase().replace(/[^a-z0-9]/g,''));
-              if(existing && mode === 'merge'){
-                if(conflictStrategy === 'incoming_wins'){
+              if(existing && (mode === 'merge' || mode === 'delete_merge')){
+                matched.decisions.add(existing.id);
+                if(effectiveConflictStrategy === 'incoming_wins'){
                   Object.assign(existing, { owner: norm.owner || existing.owner, status: norm.status || existing.status, impact: norm.impact || existing.impact });
                   updated++;
-                } else if(conflictStrategy === 'existing_wins'){
-                  if(!existing.owner && norm.owner) existing.owner = norm.owner;
+                } else if(effectiveConflictStrategy === 'existing_wins'){
+                  fillBlankFields(existing, norm);
                   updated++;
                 } else if(conflictStrategy === 'manual_review'){
                   flagged++;
                   conflicts.push({ type: 'decision', id: existing.id, existing, incoming: norm, diffs: { status: { existing: existing.status, incoming: norm.status } } });
                 }
               } else {
+                if(mode === 'delete_merge') matched.decisions.add(norm.id);
                 state.decisions.unshift(norm);
                 appended++;
               }
@@ -814,14 +878,17 @@
               };
 
               const existing = state.priorities.find(p=> p.focusArea.toLowerCase().replace(/[^a-z0-9]/g,'') === norm.focusArea.toLowerCase().replace(/[^a-z0-9]/g,''));
-              if(existing && mode === 'merge'){
-                if(conflictStrategy === 'incoming_wins'){
+              if(existing && (mode === 'merge' || mode === 'delete_merge')){
+                matched.priorities.add(existing.id);
+                if(effectiveConflictStrategy === 'incoming_wins'){
                   Object.assign(existing, { priority: norm.priority || existing.priority, why: norm.why || existing.why, horizon: norm.horizon || existing.horizon });
                   updated++;
-                } else {
+                } else if(effectiveConflictStrategy === 'existing_wins'){
+                  fillBlankFields(existing, norm);
                   updated++;
                 }
               } else {
+                if(mode === 'delete_merge') matched.priorities.add(norm.id);
                 state.priorities.unshift(norm);
                 appended++;
               }
@@ -846,18 +913,20 @@
               };
 
               const existing = state.actions.find(a=> a.company.toLowerCase() === norm.company.toLowerCase() && a.item.toLowerCase().replace(/[^a-z0-9]/g,'') === norm.item.toLowerCase().replace(/[^a-z0-9]/g,''));
-              if(existing && mode === 'merge'){
-                if(conflictStrategy === 'incoming_wins'){
+              if(existing && (mode === 'merge' || mode === 'delete_merge')){
+                matched.actions.add(existing.id);
+                if(effectiveConflictStrategy === 'incoming_wins'){
                   Object.assign(existing, { status: norm.status || existing.status, owner: norm.owner || existing.owner, function: norm.function || existing.function, due: norm.due || existing.due });
                   updated++;
-                } else if(conflictStrategy === 'existing_wins'){
-                  if(!existing.comments && norm.comments) existing.comments = norm.comments;
+                } else if(effectiveConflictStrategy === 'existing_wins'){
+                  fillBlankFields(existing, norm);
                   updated++;
                 } else if(conflictStrategy === 'manual_review'){
                   flagged++;
                   conflicts.push({ type: 'action', id: existing.id, existing, incoming: norm, diffs: { status: { existing: existing.status, incoming: norm.status } } });
                 }
               } else {
+                if(mode === 'delete_merge') matched.actions.add(norm.id);
                 state.actions.unshift(norm);
                 appended++;
               }
@@ -867,10 +936,28 @@
       }
     }
 
+    if(mode === 'delete_merge'){
+      if(destination === 'all' || destination === 'register' || destination === 'create_new'){
+        const kept = state.actions.filter(a => matched.actions.has(a.id));
+        deleted += state.actions.length - kept.length;
+        state.actions = kept;
+      }
+      if(destination === 'all' || destination === 'decisions'){
+        const kept = state.decisions.filter(d => matched.decisions.has(d.id));
+        deleted += state.decisions.length - kept.length;
+        state.decisions = kept;
+      }
+      if(destination === 'all' || destination === 'priorities'){
+        const kept = state.priorities.filter(p => matched.priorities.has(p.id));
+        deleted += state.priorities.length - kept.length;
+        state.priorities = kept;
+      }
+    }
+
     await saveState(true);
     return {
-      message: `Processed ${sheetsProcessed} sheet(s): ${appended} appended, ${updated} updated, ${skipped} skipped, ${flagged} flagged.`,
-      counts: { appended, updated, skipped, flagged, sheets_processed: sheetsProcessed },
+      message: `Processed ${sheetsProcessed} sheet(s): ${appended} appended, ${updated} updated, ${deleted} removed, ${skipped} skipped, ${flagged} flagged.`,
+      counts: { appended, updated, deleted, skipped, flagged, sheets_processed: sheetsProcessed },
       conflicts
     };
   }
@@ -2058,8 +2145,9 @@
               <div>
                 <label>Sync Strategy</label>
                 <select id="gs-sync-mode">
-                  <option value="merge">Merge & Update</option>
-                  <option value="replace">Replace All</option>
+                  <option value="merge" ${gs.mode==='merge'||!gs.mode?'selected':''}>Merge & Update</option>
+                  <option value="delete_merge" ${gs.mode==='delete_merge'?'selected':''}>Delete &amp; Merge</option>
+                  <option value="replace" ${gs.mode==='replace'?'selected':''}>Replace All</option>
                 </select>
               </div>
             </div>
@@ -2159,6 +2247,7 @@
               <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">Import Strategy</label>
               <select id="upload-mode-select">
                 <option value="merge">Merge & Update</option>
+                <option value="delete_merge">Delete &amp; Merge</option>
                 <option value="append">Append Only (New IDs)</option>
                 <option value="replace">Replace All Existing</option>
               </select>
@@ -2231,6 +2320,11 @@
                 <div class="gcc-metric-val">${persistentUploadStatus.counts.updated || 0}</div>
                 <div class="gcc-metric-label">Updated</div>
               </div>
+              ${(persistentUploadStatus.counts.deleted || 0) > 0 ? `
+              <div class="gcc-metric-card flagged" style="background:rgba(239,68,68,0.12);border-color:rgba(239,68,68,0.35);">
+                <div class="gcc-metric-val" style="color:#ef4444;">-${persistentUploadStatus.counts.deleted}</div>
+                <div class="gcc-metric-label">Removed</div>
+              </div>` : ''}
               <div class="gcc-metric-card skipped">
                 <div class="gcc-metric-val">${persistentUploadStatus.counts.skipped || 0}</div>
                 <div class="gcc-metric-label">Excluded</div>
@@ -3372,12 +3466,14 @@ function onFormSubmit(e) {
         const sheetId = document.getElementById('gs-sheet-id').value.trim();
         const autoInterval = +document.getElementById('gs-auto-interval').value;
         const target = (document.getElementById('gs-sync-target') && document.getElementById('gs-sync-target').value) || 'all';
+        const mode = (document.getElementById('gs-sync-mode') && document.getElementById('gs-sync-mode').value) || 'merge';
         state.settings.googleSheets.sheetId = sheetId;
         state.settings.googleSheets.target = target;
+        state.settings.googleSheets.mode = mode;
         state.settings.googleSheets.autoSyncIntervalMinutes = autoInterval;
         await saveState(true);
         setupAutoSync();
-        syncGoogleSheets(true);
+        syncGoogleSheets(true, mode);
       };
 
       const dropzone = document.getElementById('gcc-dropzone');
@@ -3496,7 +3592,18 @@ function onFormSubmit(e) {
               if(dateEnd) formData.append('date_end', dateEnd);
               if(newCompanyName) formData.append('new_company_name', newCompanyName);
 
-              const res = await fetch('/api/upload', {method: 'POST', body: formData});
+              // Upload authentication uses the HttpOnly gcc_session cookie established at login.
+              // Do not set multipart Content-Type manually: the browser supplies its boundary.
+              const uploadRequest = () => fetch('/api/upload', {
+                method: 'POST',
+                credentials: 'same-origin',
+                body: formData
+              });
+              let res = await uploadRequest();
+              if(res.status === 401 && await tryRefreshToken()){
+                res = await uploadRequest();
+              }
+              if(res.status === 401) redirectToLogin();
               const json = await res.json();
               if(res.ok && json.success){
                 const latest = await apiFetch('/api/data');

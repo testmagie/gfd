@@ -920,32 +920,28 @@ def process_dataset_import(
             if ctx.new_priorities:
                 current_state["priorities"] = ctx.new_priorities
     elif mode_key == "delete_merge":
-        # Merge + delete unmatched: Remove any existing record that was NOT matched/updated
-        # by an incoming CSV row. Dashboard-only edits on MATCHED records are preserved.
+        # Merge + delete unmatched: Remove any existing record that was NOT matched
+        # by an incoming CSV row. Dashboard edits on MATCHED records are preserved.
         if dest_key in ("register", "all", "create_new"):
-            # Keep matched records (already updated in-place) + new appended records
             kept_actions = [
                 a for idx, a in enumerate(ctx.actions_list)
                 if idx in ctx.matched_actions
             ]
-            deleted_actions = len(ctx.actions_list) - len(kept_actions)
-            metrics["deleted"] += deleted_actions
+            metrics["deleted"] += len(ctx.actions_list) - len(kept_actions)
             current_state["actions"] = kept_actions + ctx.new_actions
         if dest_key in ("decisions", "all"):
             kept_decisions = [
                 d for idx, d in enumerate(ctx.decisions_list)
                 if idx in ctx.matched_decisions
             ]
-            deleted_decisions = len(ctx.decisions_list) - len(kept_decisions)
-            metrics["deleted"] += deleted_decisions
+            metrics["deleted"] += len(ctx.decisions_list) - len(kept_decisions)
             current_state["decisions"] = kept_decisions + ctx.new_decisions
         if dest_key in ("priorities", "all"):
             kept_priorities = [
                 p for idx, p in enumerate(ctx.priorities_list)
                 if idx in ctx.matched_priorities
             ]
-            deleted_priorities = len(ctx.priorities_list) - len(kept_priorities)
-            metrics["deleted"] += deleted_priorities
+            metrics["deleted"] += len(ctx.priorities_list) - len(kept_priorities)
             current_state["priorities"] = kept_priorities + ctx.new_priorities
         if dest_key == "create_new":
             # For create_new, only prune actions belonging to the target company
