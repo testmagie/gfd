@@ -269,17 +269,3 @@ def admin_update_user_role(user_id: str, role: str) -> Dict[str, Any]:
         logger.error(f"Error updating role for {user_id}: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
 
-
-# ────────────────────────────────────────────────────────────────────
-# Backward-compat shim for old change_password calls
-# ────────────────────────────────────────────────────────────────────
-def change_password(current_password: str, new_password: str):
-    """
-    Legacy shim — password changes are now handled via Supabase dashboard
-    or by having the user reset via email. This endpoint is kept for
-    API compatibility but returns a descriptive message.
-    """
-    return False, (
-        "Password changes are managed via Supabase. "
-        "Use the Supabase dashboard or trigger a password reset email."
-    )

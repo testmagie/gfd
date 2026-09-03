@@ -79,7 +79,6 @@
 
   // Authentication State
   // Authentication is carried by the HttpOnly gcc_session cookie, never JavaScript-readable storage.
-  let authToken = '';
   let currentUser = null;
   try {
     const savedUser = sessionStorage.getItem('gcc_user');
@@ -95,15 +94,6 @@
 
   async function apiFetch(endpoint, options = {}){
     options.headers = options.headers || {};
-    if(authToken){
-      if(options.headers instanceof Headers){
-        options.headers.set('Authorization', `Bearer ${authToken}`);
-        options.headers.set('X-Auth-Token', authToken);
-      } else {
-        options.headers['Authorization'] = `Bearer ${authToken}`;
-        options.headers['X-Auth-Token'] = authToken;
-      }
-    }
     try {
       const res = await fetch(endpoint, options);
       if (res.ok) {
@@ -185,7 +175,6 @@
       // ask the server to clear the session cookie before navigating away.
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
     } catch(e){}
-    authToken = '';
     currentUser = null;
     sessionUnlocked = false;
     sessionStorage.removeItem('gcc_user');

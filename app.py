@@ -53,7 +53,6 @@ from services.auth_service import (
     authenticate_user,
     verify_session_token,
     revoke_session,
-    change_password,
     admin_create_user,
     admin_list_users,
     admin_delete_user,
@@ -233,10 +232,10 @@ def credentials_status(request: Request):
 @app.post("/api/credentials/test")
 async def test_credentials(request: Request):
     """
-    Live-tests the currently loaded credentials. Requires authentication.
+    Live-tests the currently loaded credentials. Admin-only.
     Optionally validates access to a specific Google Sheet if sheetId is provided.
     """
-    _require_auth(request)
+    _require_admin(request)
     body: dict = {}
     try:
         body = await request.json()
@@ -330,9 +329,9 @@ async def cleanup_fallback_companies(request: Request):
     """
     Removes actions/decisions/priorities assigned to the fallback 'Google Sheet' company
     and removes 'Google Sheet' from the companies list.
-    Requires authentication.
+    Admin-only.
     """
-    _require_auth(request)
+    _require_admin(request)
     state = get_state()
     fallback_name = "Google Sheet"
 
@@ -372,8 +371,8 @@ def get_dashboard_data(request: Request):
 
 @app.post("/api/save")
 async def save_dashboard_data(request: Request):
-    """Saves the entire state payload. Requires authentication."""
-    _require_auth(request)
+    """Saves the entire state payload. Admin-only."""
+    _require_admin(request)
     try:
         new_state = await request.json()
         if not isinstance(new_state, dict):
@@ -394,8 +393,8 @@ async def save_dashboard_data(request: Request):
 
 @app.post("/api/actions")
 async def add_action(request: Request):
-    """Adds a new action item. Requires authentication."""
-    _require_auth(request)
+    """Adds a new action item. Admin-only."""
+    _require_admin(request)
     data = await request.json()
     state = get_state()
     norm = normalize_action_item(data)
@@ -409,8 +408,8 @@ async def add_action(request: Request):
 
 @app.put("/api/actions/{action_id}")
 async def update_action(action_id: str, request: Request):
-    """Updates an existing action item. Requires authentication."""
-    _require_auth(request)
+    """Updates an existing action item. Admin-only."""
+    _require_admin(request)
     updates = await request.json()
     state = get_state()
     actions = state.get("actions", [])
@@ -429,8 +428,8 @@ async def update_action(action_id: str, request: Request):
 
 @app.delete("/api/actions/{action_id}")
 def delete_action(action_id: str, request: Request):
-    """Deletes an action item. Requires authentication."""
-    _require_auth(request)
+    """Deletes an action item. Admin-only."""
+    _require_admin(request)
     state = get_state()
     orig_len = len(state.get("actions", []))
     state["actions"] = [a for a in state.get("actions", []) if str(a.get("id")) != str(action_id)]
@@ -446,8 +445,8 @@ def delete_action(action_id: str, request: Request):
 
 @app.post("/api/decisions")
 async def add_decision(request: Request):
-    """Adds a new decision. Requires authentication."""
-    _require_auth(request)
+    """Adds a new decision. Admin-only."""
+    _require_admin(request)
     data = await request.json()
     state = get_state()
     norm = normalize_decision_item(data)
@@ -460,8 +459,8 @@ async def add_decision(request: Request):
 
 @app.put("/api/decisions/{decision_id}")
 async def update_decision(decision_id: str, request: Request):
-    """Updates an existing decision. Requires authentication."""
-    _require_auth(request)
+    """Updates an existing decision. Admin-only."""
+    _require_admin(request)
     updates = await request.json()
     state = get_state()
     decisions = state.get("decisions", [])
@@ -479,8 +478,8 @@ async def update_decision(decision_id: str, request: Request):
 
 @app.delete("/api/decisions/{decision_id}")
 def delete_decision(decision_id: str, request: Request):
-    """Deletes a decision. Requires authentication."""
-    _require_auth(request)
+    """Deletes a decision. Admin-only."""
+    _require_admin(request)
     state = get_state()
     orig_len = len(state.get("decisions", []))
     state["decisions"] = [d for d in state.get("decisions", []) if str(d.get("id")) != str(decision_id)]
@@ -496,8 +495,8 @@ def delete_decision(decision_id: str, request: Request):
 
 @app.post("/api/priorities")
 async def add_priority(request: Request):
-    """Adds a strategic priority. Requires authentication."""
-    _require_auth(request)
+    """Adds a strategic priority. Admin-only."""
+    _require_admin(request)
     data = await request.json()
     state = get_state()
     norm = normalize_priority_item(data)
@@ -510,8 +509,8 @@ async def add_priority(request: Request):
 
 @app.put("/api/priorities/{priority_id}")
 async def update_priority(priority_id: str, request: Request):
-    """Updates a strategic priority. Requires authentication."""
-    _require_auth(request)
+    """Updates a strategic priority. Admin-only."""
+    _require_admin(request)
     updates = await request.json()
     state = get_state()
     priorities = state.get("priorities", [])
@@ -529,8 +528,8 @@ async def update_priority(priority_id: str, request: Request):
 
 @app.delete("/api/priorities/{priority_id}")
 def delete_priority(priority_id: str, request: Request):
-    """Deletes a strategic priority. Requires authentication."""
-    _require_auth(request)
+    """Deletes a strategic priority. Admin-only."""
+    _require_admin(request)
     state = get_state()
     orig_len = len(state.get("priorities", []))
     state["priorities"] = [p for p in state.get("priorities", []) if str(p.get("id")) != str(priority_id)]
@@ -546,8 +545,8 @@ def delete_priority(priority_id: str, request: Request):
 
 @app.post("/api/settings")
 async def update_settings(request: Request):
-    """Updates settings object. Requires authentication."""
-    _require_auth(request)
+    """Updates settings object. Admin-only."""
+    _require_admin(request)
     updates = await request.json()
     state = get_state()
     settings = state.setdefault("settings", {})
@@ -561,8 +560,8 @@ async def update_settings(request: Request):
 
 @app.post("/api/sync/google-sheets")
 async def sync_google_sheets(request: Request):
-    """Triggers live synchronization with Google Sheets. Requires authentication."""
-    _require_auth(request)
+    """Triggers live synchronization with Google Sheets. Admin-only."""
+    _require_admin(request)
     body: dict = {}
     try:
         body = await request.json()
@@ -640,7 +639,7 @@ async def upload_files(
     new_company_name: Optional[str] = Form(default=None),
 ):
     """
-    Handles multi-file uploads. Requires authentication.
+    Handles multi-file uploads. Admin-only.
     - Multiple CSV files (3+ CSVs simultaneously)
     - Multi-tab Excel workbooks (.xlsx, .xls)
     - Mixed uploads
@@ -793,10 +792,10 @@ async def upload_files(
 @app.post("/api/conflicts/resolve")
 async def resolve_conflicts(request: Request):
     """
-    Applies manual conflict resolutions. Requires authentication.
+    Applies manual conflict resolutions. Admin-only.
     Expects payload: { "resolutions": [ { "id": str, "type": "action"|"decision"|"priority", "resolution": "use_incoming"|"keep_existing"|"custom", "incoming": dict, "custom_values": dict } ] }
     """
-    _require_auth(request)
+    _require_admin(request)
     try:
         payload = await request.json()
         resolutions = payload.get("resolutions", [])
@@ -1072,35 +1071,11 @@ async def update_user_role_api(user_id: str, request: Request):
 @app.post("/api/auth/logout")
 async def logout_api(request: Request):
     """Revokes session token."""
-    auth_header = request.headers.get("Authorization", "")
-    token = ""
-    if auth_header.startswith("Bearer "):
-        token = auth_header[7:].strip()
-    elif "X-Auth-Token" in request.headers:
-        token = request.headers["X-Auth-Token"].strip()
-
-    revoke_session(token)
+    revoke_session(_extract_token(request))
     from fastapi.responses import JSONResponse
     response = JSONResponse({"success": True, "message": "Logged out successfully."})
     response.delete_cookie("gcc_session")
     return response
-
-@app.post("/api/auth/change-password")
-async def change_password_api(request: Request):
-    """Changes admin password."""
-    try:
-        data = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid payload")
-
-    curr_pwd = data.get("currentPassword", "")
-    new_pwd = data.get("newPassword", "")
-
-    success, msg = change_password(curr_pwd, new_pwd)
-    if not success:
-        raise HTTPException(status_code=400, detail=msg)
-
-    return {"success": True, "message": msg}
 
 # ==========================================
 # Webhooks Integration APIs
@@ -1187,7 +1162,7 @@ async def handle_inbound_webhook(request: Request):
 
 @app.get("/api/webhooks/logs")
 def get_webhook_logs_api(request: Request):
-    """Returns recent webhook activity logs. Requires authentication."""
+    """Returns recent webhook activity logs. Admin-only."""
     _require_admin(request)
     return {
         "success": True,
@@ -1196,7 +1171,7 @@ def get_webhook_logs_api(request: Request):
 
 @app.post("/api/webhooks/clear-logs")
 def clear_webhook_logs_api(request: Request):
-    """Clears webhook activity logs. Requires authentication."""
+    """Clears webhook activity logs. Admin-only."""
     _require_admin(request)
     clear_webhook_logs()
     return {"success": True, "message": "Webhook activity logs cleared."}
@@ -1204,9 +1179,9 @@ def clear_webhook_logs_api(request: Request):
 @app.post("/api/webhooks/test")
 async def trigger_test_webhook(request: Request):
     """
-    Simulates a Google Form or third-party webhook submission for testing. Requires authentication.
+    Simulates a Google Form or third-party webhook submission for testing. Admin-only.
     """
-    _require_auth(request)
+    _require_admin(request)
     body = {}
     try:
         body = await request.json()
@@ -1272,8 +1247,8 @@ async def trigger_test_webhook(request: Request):
 
 @app.get("/api/webhooks/script")
 def get_google_apps_script_api(request: Request):
-    """Returns copy-paste ready Google Apps Script tailored to current host. Requires authentication."""
-    _require_auth(request)
+    """Returns copy-paste ready Google Apps Script tailored to current host. Admin-only."""
+    _require_admin(request)
     host = request.headers.get("host") or "localhost:5000"
     scheme = "https" if "https" in request.headers.get("x-forwarded-proto", "") else "http"
     base_url = f"{scheme}://{host}"
