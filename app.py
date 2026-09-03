@@ -76,6 +76,7 @@ app = FastAPI(title="CEO Dashboard API")
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))
 MAX_UPLOAD_FILES = int(os.getenv("MAX_UPLOAD_FILES", "5"))
 MAX_IMPORT_ROWS = int(os.getenv("MAX_IMPORT_ROWS", "10000"))
+MAX_STATE_RECORDS = int(os.getenv("MAX_STATE_RECORDS", "50000"))
 MAX_EXCEL_SHEETS = int(os.getenv("MAX_EXCEL_SHEETS", "20"))
 MAX_WEBHOOK_BYTES = int(os.getenv("MAX_WEBHOOK_BYTES", str(1024 * 1024)))
 WEBHOOK_RATE_LIMIT = int(os.getenv("WEBHOOK_RATE_LIMIT", "60"))
@@ -128,6 +129,11 @@ def _validate_state_payload(state: Dict) -> None:
     required_types = {"settings": dict, "actions": list, "decisions": list, "priorities": list}
     if not isinstance(state, dict) or not all(isinstance(state.get(key), value_type) for key, value_type in required_types.items()):
         raise HTTPException(status_code=400, detail="State must contain settings plus actions, decisions, and priorities lists.")
+    unexpected_keys = set(state) - {"lastUpdated", "settings", "actions", "decisions", "priorities"}
+    if unexpected_keys:
+        raise HTTPException(status_code=400, detail="State contains unsupported top-level fields.")
+    if sum(len(state[key]) for key in ("actions", "decisions", "priorities")) > MAX_STATE_RECORDS:
+        raise HTTPException(status_code=413, detail=f"State exceeds the {MAX_STATE_RECORDS} record limit.")
     if any(not isinstance(item, dict) for key in ("actions", "decisions", "priorities") for item in state[key]):
         raise HTTPException(status_code=400, detail="State records must be JSON objects.")
 
@@ -944,14 +950,7 @@ async def login_api(request: Request):
 @app.get("/api/auth/me")
 def get_current_user_api(request: Request):
     """Verifies existing Supabase JWT and returns active user profile."""
-    auth_header = request.headers.get("Authorization", "")
-    token = ""
-    if auth_header.startswith("Bearer "):
-        token = auth_header[7:].strip()
-    elif "X-Auth-Token" in request.headers:
-        token = request.headers["X-Auth-Token"].strip()
-    elif "token" in request.query_params:
-        token = request.query_params["token"].strip()
+    token = _extract_token(request)
 
     try:
         user = verify_session_token(token)
@@ -1074,14 +1073,7 @@ async def update_user_role_api(user_id: str, request: Request):
 @app.post("/api/auth/logout")
 async def logout_api(request: Request):
     """Revokes session token."""
-    auth_header = request.headers.get("Authorization", "")
-    token = ""
-    if auth_header.startswith("Bearer "):
-        token = auth_header[7:].strip()
-    elif "X-Auth-Token" in request.headers:
-        token = request.headers["X-Auth-Token"].strip()
-
-    revoke_session(token)
+    revoke_session(_extract_token(request))
     from fastapi.responses import JSONResponse
     response = JSONResponse({"success": True, "message": "Logged out successfully."})
     response.delete_cookie("gcc_session")
@@ -1098,6 +1090,7 @@ async def change_password_api(request: Request):
     curr_pwd = data.get("currentPassword", "")
     new_pwd = data.get("newPassword", "")
 
+    _require_auth(request)
     success, msg = change_password(curr_pwd, new_pwd)
     if not success:
         raise HTTPException(status_code=400, detail=msg)

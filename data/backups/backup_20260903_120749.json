@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-09-03T07:14:27.844310+00:00",
+  "lastUpdated": "2026-09-03T06:29:12.432601+00:00",
   "settings": {
     "colors": {
       "attention": "#E5484D",
@@ -56,10 +56,6 @@
       {
         "id": "arna",
         "name": "arna"
-      },
-      {
-        "id": "edT",
-        "name": "edT"
       }
     ],
     "statuses": [
@@ -234,9 +230,9 @@
       "sheetId": "1alUCBe5MRRZYp6hAcKuLsf0YAEhNx8h-s7UQOizgTfg",
       "target": "all",
       "autoSyncIntervalMinutes": 0,
-      "lastSyncTime": "2026-09-03T07:14:27.843616+00:00",
+      "lastSyncTime": "2026-09-03T05:20:48.332688+00:00",
       "syncStatus": "success",
-      "syncMessage": "Synced 91 record(s) (91 new, 0 updated) across 5 sheet(s) (32 skipped below threshold)."
+      "syncMessage": "Synced 170 record(s) (170 new, 0 updated) across 5 sheet(s) (32 skipped below threshold)."
     },
     "webhookSettings": {
       "enabled": true,
@@ -1842,7 +1838,7 @@
       "comments": ""
     },
     {
-      "id": "a_b59febfc",
+      "id": "a_b3169387",
       "company": "arna",
       "function": "Content",
       "item": "Content",
@@ -1853,7 +1849,7 @@
       "comments": ""
     },
     {
-      "id": "a_92929f74",
+      "id": "a_0bd5d2a0",
       "company": "arna",
       "function": "Content",
       "item": "Content",
@@ -1864,7 +1860,7 @@
       "comments": ""
     },
     {
-      "id": "a_b6d45b1c",
+      "id": "a_afc506be",
       "company": "arna",
       "function": "Content",
       "item": "Content",
@@ -1875,7 +1871,7 @@
       "comments": ""
     },
     {
-      "id": "a_6f322fc9",
+      "id": "a_8c557597",
       "company": "arna",
       "function": "Content",
       "item": "Content",
@@ -1886,7 +1882,7 @@
       "comments": ""
     },
     {
-      "id": "a_3ac6d1ee",
+      "id": "a_d109f5a9",
       "company": "arna",
       "function": "ONDC",
       "item": "24-Dec",
@@ -1897,7 +1893,7 @@
       "comments": ""
     },
     {
-      "id": "a_699069ae",
+      "id": "a_52f592e1",
       "company": "arna",
       "function": "ONDC",
       "item": "5-Dec",
@@ -1908,7 +1904,7 @@
       "comments": ""
     },
     {
-      "id": "a_ed141fbb",
+      "id": "a_5802be50",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -1919,7 +1915,7 @@
       "comments": "in vibe"
     },
     {
-      "id": "a_8041b8c7",
+      "id": "a_eeb033b1",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -1930,7 +1926,7 @@
       "comments": ""
     },
     {
-      "id": "a_7b6fa49b",
+      "id": "a_ce8afb49",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -1941,7 +1937,7 @@
       "comments": ""
     },
     {
-      "id": "a_1ece393f",
+      "id": "a_3b57a981",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -1952,7 +1948,7 @@
       "comments": ""
     },
     {
-      "id": "a_d1866f4e",
+      "id": "a_e6b75098",
       "company": "arna",
       "function": "GTM",
       "item": "Integrate transit tourism opportunities into strategy",
@@ -1963,7 +1959,7 @@
       "comments": "Integrate transit tourism opportunities into strategy"
     },
     {
-      "id": "a_4d002617",
+      "id": "a_34aa6637",
       "company": "arna",
       "function": "GTM",
       "item": "22-Jan",
@@ -1974,7 +1970,7 @@
       "comments": ""
     },
     {
-      "id": "a_fb065ef5",
+      "id": "a_add5f2dd",
       "company": "arna",
       "function": "GTM",
       "item": "22-Jan",
@@ -1985,7 +1981,7 @@
       "comments": ""
     },
     {
-      "id": "a_630f6dbe",
+      "id": "a_72e46174",
       "company": "arna",
       "function": "GTM",
       "item": "24-Feb",
@@ -1996,7 +1992,7 @@
       "comments": ""
     },
     {
-      "id": "a_f604b1f7",
+      "id": "a_ff6aa72b",
       "company": "arna",
       "function": "Product",
       "item": "1. Agentic Layer\n2. Voice\n3. Assigning tasks to Creatorprenuer\n4. Fintech & Monetisation\n5. Skilltech\n6. Marktech",
@@ -2007,7 +2003,7 @@
       "comments": "1. Agentic Layer\n2. Voice\n3. Assigning tasks to Creatorprenuer\n4. Fintech & Monetisation\n5. Skilltech\n6. Marktech"
     },
     {
-      "id": "a_35a14a97",
+      "id": "a_acd5f6c7",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2018,7 +2014,7 @@
       "comments": ""
     },
     {
-      "id": "a_7b068a48",
+      "id": "a_854427a0",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2029,7 +2025,7 @@
       "comments": ""
     },
     {
-      "id": "a_224bae9e",
+      "id": "a_e328f1bd",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2040,7 +2036,7 @@
       "comments": ""
     },
     {
-      "id": "a_ec46b99f",
+      "id": "a_0cdbf2fc",
       "company": "arna",
       "function": "GTM",
       "item": "27-Feb",
@@ -2051,7 +2047,7 @@
       "comments": ""
     },
     {
-      "id": "a_c16b4cbb",
+      "id": "a_c82f7e6a",
       "company": "arna",
       "function": "GTM",
       "item": "27-Feb",
@@ -2062,7 +2058,7 @@
       "comments": ""
     },
     {
-      "id": "a_a6c6042d",
+      "id": "a_91154044",
       "company": "arna",
       "function": "GTM",
       "item": "27-Feb",
@@ -2073,7 +2069,7 @@
       "comments": ""
     },
     {
-      "id": "a_51ec91e6",
+      "id": "a_68f5cbd5",
       "company": "arna",
       "function": "GTM",
       "item": "27-Feb",
@@ -2084,7 +2080,7 @@
       "comments": ""
     },
     {
-      "id": "a_797d58e2",
+      "id": "a_44b1abc5",
       "company": "arna",
       "function": "GTM",
       "item": "27-Feb",
@@ -2095,7 +2091,7 @@
       "comments": ""
     },
     {
-      "id": "a_e018259c",
+      "id": "a_83484053",
       "company": "arna",
       "function": "Content",
       "item": "Content",
@@ -2106,7 +2102,7 @@
       "comments": ""
     },
     {
-      "id": "a_f10a32ef",
+      "id": "a_6e421f99",
       "company": "arna",
       "function": "Content",
       "item": "Content",
@@ -2117,7 +2113,7 @@
       "comments": ""
     },
     {
-      "id": "a_9cbd9409",
+      "id": "a_3c84dad8",
       "company": "arna",
       "function": "Content",
       "item": "Content",
@@ -2128,7 +2124,7 @@
       "comments": ""
     },
     {
-      "id": "a_6c2b76f7",
+      "id": "a_6a07bb53",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2139,7 +2135,7 @@
       "comments": ""
     },
     {
-      "id": "a_3e70bd7b",
+      "id": "a_8495e341",
       "company": "arna",
       "function": "GTM",
       "item": "17-Mar",
@@ -2150,7 +2146,7 @@
       "comments": ""
     },
     {
-      "id": "a_7019a29b",
+      "id": "a_053956a6",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2161,7 +2157,7 @@
       "comments": ""
     },
     {
-      "id": "a_a5cd9363",
+      "id": "a_c6cd3b96",
       "company": "arna",
       "function": "GTM",
       "item": "DWTC, Expo City",
@@ -2172,7 +2168,7 @@
       "comments": ""
     },
     {
-      "id": "a_34d203a2",
+      "id": "a_8b8c2054",
       "company": "arna",
       "function": "GTM",
       "item": "trade license, entity registration,",
@@ -2183,7 +2179,7 @@
       "comments": ""
     },
     {
-      "id": "a_a26c63e5",
+      "id": "a_103b8a71",
       "company": "arna",
       "function": "GTM",
       "item": "Originals",
@@ -2194,7 +2190,7 @@
       "comments": ""
     },
     {
-      "id": "a_9084ef95",
+      "id": "a_82a5fd33",
       "company": "arna",
       "function": "GTM",
       "item": "Logic given by Raghav to Hemanth\n\"APIs- Aikonic- Nikhil\nPdfs- Bulk Upload- Lakshmi\nCreators (100k)- App- Saurav\nScrapped Data- Transformer- Raghav\"",
@@ -2205,7 +2201,7 @@
       "comments": ""
     },
     {
-      "id": "a_81222d09",
+      "id": "a_6ebde300",
       "company": "arna",
       "function": "GTM",
       "item": "1-Apr",
@@ -2216,7 +2212,7 @@
       "comments": ""
     },
     {
-      "id": "a_a30a7fdc",
+      "id": "a_38fb3da8",
       "company": "arna",
       "function": "GTM",
       "item": "22-Jan",
@@ -2227,7 +2223,7 @@
       "comments": ""
     },
     {
-      "id": "a_537b81ed",
+      "id": "a_3f11007d",
       "company": "arna",
       "function": "Content",
       "item": "Content",
@@ -2238,7 +2234,7 @@
       "comments": ""
     },
     {
-      "id": "a_9edf9b59",
+      "id": "a_199d60a9",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2249,7 +2245,7 @@
       "comments": ""
     },
     {
-      "id": "a_436f5e03",
+      "id": "a_77b92c58",
       "company": "arna",
       "function": "Product",
       "item": "High level done\nDetailed- tbd",
@@ -2260,7 +2256,7 @@
       "comments": ""
     },
     {
-      "id": "a_61a4f51a",
+      "id": "a_8079fb28",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2271,7 +2267,7 @@
       "comments": ""
     },
     {
-      "id": "a_ac367bce",
+      "id": "a_71008035",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2282,7 +2278,7 @@
       "comments": ""
     },
     {
-      "id": "a_e9291560",
+      "id": "a_15922275",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2293,7 +2289,7 @@
       "comments": ""
     },
     {
-      "id": "a_1a3f4a57",
+      "id": "a_78da4ce5",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2304,7 +2300,7 @@
       "comments": ""
     },
     {
-      "id": "a_9c382d1b",
+      "id": "a_ff3160e3",
       "company": "arna",
       "function": "GTM",
       "item": "25-Apr",
@@ -2315,7 +2311,7 @@
       "comments": ""
     },
     {
-      "id": "a_18dce493",
+      "id": "a_4938b05e",
       "company": "arna",
       "function": "GTM",
       "item": "25-Apr",
@@ -2326,7 +2322,7 @@
       "comments": ""
     },
     {
-      "id": "a_be08275d",
+      "id": "a_ec24d8b6",
       "company": "arna",
       "function": "GTM",
       "item": "25-Apr",
@@ -2337,7 +2333,7 @@
       "comments": ""
     },
     {
-      "id": "a_e0d048d4",
+      "id": "a_fe367788",
       "company": "arna",
       "function": "GTM",
       "item": "Originals",
@@ -2348,7 +2344,7 @@
       "comments": ""
     },
     {
-      "id": "a_abd9215c",
+      "id": "a_6303b8da",
       "company": "arna",
       "function": "GTM",
       "item": "Presented to Prasad. But needs more clarification on what GTM strategy to be drwan from it?",
@@ -2359,7 +2355,7 @@
       "comments": ""
     },
     {
-      "id": "a_5c119dd9",
+      "id": "a_3682132c",
       "company": "arna",
       "function": "GTM",
       "item": "Methodology to select sub-themes:\n1. Unique Experiences (white space identification)\n2. Demand-Driven (Data-Driven-  trend-following)\n3. Self-Curated by CPs ((curated originals)",
@@ -2370,7 +2366,7 @@
       "comments": ""
     },
     {
-      "id": "a_b3679274",
+      "id": "a_0d0c4a8a",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2381,7 +2377,7 @@
       "comments": ""
     },
     {
-      "id": "a_7dc2b0b6",
+      "id": "a_836c7a68",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2392,7 +2388,7 @@
       "comments": ""
     },
     {
-      "id": "a_44e19c0a",
+      "id": "a_8e93e21a",
       "company": "arna",
       "function": "GTM",
       "item": "350k Total Businesse\nSupplier: 347k- Viator (Outdated)- Refresh to get new data\nLakshmi's Team: 3k (Outdated)\n100k Creators\n134 in the db",
@@ -2403,7 +2399,7 @@
       "comments": ""
     },
     {
-      "id": "a_c5ebd0c7",
+      "id": "a_5fcf65fc",
       "company": "arna",
       "function": "Content",
       "item": "Content",
@@ -2414,7 +2410,7 @@
       "comments": ""
     },
     {
-      "id": "a_1ffda245",
+      "id": "a_49c329ad",
       "company": "arna",
       "function": "Content",
       "item": "Content",
@@ -2425,7 +2421,7 @@
       "comments": ""
     },
     {
-      "id": "a_89734c44",
+      "id": "a_d65dce71",
       "company": "arna",
       "function": "GTM",
       "item": "5-Dec",
@@ -2436,7 +2432,7 @@
       "comments": ""
     },
     {
-      "id": "a_308d51ad",
+      "id": "a_df3911c0",
       "company": "arna",
       "function": "GTM",
       "item": "5-Dec",
@@ -2447,7 +2443,7 @@
       "comments": ""
     },
     {
-      "id": "a_1fde3b83",
+      "id": "a_ad47e03c",
       "company": "arna",
       "function": "Content",
       "item": "Content",
@@ -2458,7 +2454,7 @@
       "comments": ""
     },
     {
-      "id": "a_a3785634",
+      "id": "a_0c406d5c",
       "company": "arna",
       "function": "Product",
       "item": "Done by Hemanth",
@@ -2469,7 +2465,7 @@
       "comments": "Done by Hemanth"
     },
     {
-      "id": "a_0330dcd7",
+      "id": "a_6f463744",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2480,7 +2476,7 @@
       "comments": ""
     },
     {
-      "id": "a_3ec29a8f",
+      "id": "a_7efbcea0",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2491,7 +2487,7 @@
       "comments": ""
     },
     {
-      "id": "a_3ecc4efd",
+      "id": "a_62f13fe1",
       "company": "arna",
       "function": "GTM",
       "item": "20-Jan",
@@ -2502,7 +2498,7 @@
       "comments": ""
     },
     {
-      "id": "a_90bc2b6a",
+      "id": "a_ec839ca1",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2513,7 +2509,7 @@
       "comments": ""
     },
     {
-      "id": "a_0f7417a9",
+      "id": "a_827b4e5b",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2524,7 +2520,7 @@
       "comments": ""
     },
     {
-      "id": "a_f022681e",
+      "id": "a_9c12318b",
       "company": "arna",
       "function": "People",
       "item": "People",
@@ -2535,7 +2531,7 @@
       "comments": ""
     },
     {
-      "id": "a_ded4d6be",
+      "id": "a_2e92be65",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2546,7 +2542,7 @@
       "comments": ""
     },
     {
-      "id": "a_aa655036",
+      "id": "a_b019708e",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2557,7 +2553,7 @@
       "comments": ""
     },
     {
-      "id": "a_18c59744",
+      "id": "a_5a907aa8",
       "company": "arna",
       "function": "GTM",
       "item": "27-Mar",
@@ -2568,7 +2564,7 @@
       "comments": ""
     },
     {
-      "id": "a_0a15ac5d",
+      "id": "a_7c4599be",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2579,7 +2575,7 @@
       "comments": ""
     },
     {
-      "id": "a_08e64288",
+      "id": "a_04120cae",
       "company": "arna",
       "function": "GTM",
       "item": "1-Apr",
@@ -2590,7 +2586,7 @@
       "comments": ""
     },
     {
-      "id": "a_61223c37",
+      "id": "a_b37b5592",
       "company": "arna",
       "function": "GTM",
       "item": "Suppliers",
@@ -2601,7 +2597,7 @@
       "comments": ""
     },
     {
-      "id": "a_614b6ff0",
+      "id": "a_1426af79",
       "company": "arna",
       "function": "GTM",
       "item": "22-Jan",
@@ -2612,7 +2608,7 @@
       "comments": ""
     },
     {
-      "id": "a_79805bd6",
+      "id": "a_90961b5c",
       "company": "arna",
       "function": "GTM",
       "item": "To be done with DWTC",
@@ -2623,7 +2619,7 @@
       "comments": "To be done with DWTC"
     },
     {
-      "id": "a_6740d5e1",
+      "id": "a_cfd2f51a",
       "company": "arna",
       "function": "GTM",
       "item": "27-Feb",
@@ -2634,7 +2630,7 @@
       "comments": ""
     },
     {
-      "id": "a_8f3751b9",
+      "id": "a_270db97d",
       "company": "arna",
       "function": "General",
       "item": "24-Feb",
@@ -2645,7 +2641,7 @@
       "comments": ""
     },
     {
-      "id": "a_ea906489",
+      "id": "a_39a8172c",
       "company": "arna",
       "function": "GTM",
       "item": "1. Social Media Creators\n2. Gig Workers\n3. People seeking additional income",
@@ -2656,7 +2652,7 @@
       "comments": ""
     },
     {
-      "id": "a_f761a087",
+      "id": "a_03c0cf1e",
       "company": "arna",
       "function": "GTM",
       "item": "To Review",
@@ -2667,7 +2663,7 @@
       "comments": ""
     },
     {
-      "id": "a_1cdcf8e8",
+      "id": "a_119dae0c",
       "company": "arna",
       "function": "GTM",
       "item": "Suppliers",
@@ -2678,7 +2674,7 @@
       "comments": ""
     },
     {
-      "id": "a_61c1dbea",
+      "id": "a_f7bf8322",
       "company": "arna",
       "function": "GTM",
       "item": "Clarity",
@@ -2689,7 +2685,7 @@
       "comments": ""
     },
     {
-      "id": "a_273bff4b",
+      "id": "a_6a125eb8",
       "company": "arna",
       "function": "GTM",
       "item": "18-Apr",
@@ -2700,7 +2696,7 @@
       "comments": ""
     },
     {
-      "id": "a_eb53dc2d",
+      "id": "a_90bb0b13",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2711,7 +2707,7 @@
       "comments": ""
     },
     {
-      "id": "a_ac2a8f3d",
+      "id": "a_da7ed934",
       "company": "arna",
       "function": "Product",
       "item": "UX flows",
@@ -2722,7 +2718,7 @@
       "comments": ""
     },
     {
-      "id": "a_c12e067c",
+      "id": "a_b34706c0",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2733,7 +2729,7 @@
       "comments": ""
     },
     {
-      "id": "a_2d0d3f71",
+      "id": "a_10e5568b",
       "company": "arna",
       "function": "Product",
       "item": "Product",
@@ -2744,7 +2740,7 @@
       "comments": ""
     },
     {
-      "id": "a_98dcb0f4",
+      "id": "a_2fcdab40",
       "company": "arna",
       "function": "General",
       "item": "8-Jul",
@@ -2755,7 +2751,7 @@
       "comments": ""
     },
     {
-      "id": "a_cb2136f8",
+      "id": "a_c636704f",
       "company": "arna",
       "function": "General",
       "item": "WIP",
@@ -2766,7 +2762,7 @@
       "comments": ""
     },
     {
-      "id": "a_63288380",
+      "id": "a_230a7ea9",
       "company": "arna",
       "function": "Product",
       "item": "To Review",
@@ -2777,7 +2773,7 @@
       "comments": ""
     },
     {
-      "id": "a_2c596156",
+      "id": "a_c79ad91b",
       "company": "arna",
       "function": "General",
       "item": "46268",
@@ -2788,7 +2784,7 @@
       "comments": ""
     },
     {
-      "id": "a_4c8b5534",
+      "id": "a_e5ce9bd6",
       "company": "arna",
       "function": "General",
       "item": "46268",
@@ -2799,46 +2795,13 @@
       "comments": ""
     },
     {
-      "id": "a_55faa6fc",
+      "id": "a_1508e2f1",
       "company": "arna",
       "function": "General",
       "item": "Raghav has the data of UAE businesses- 1500k. 50% are contactable 100k",
       "status": "WIP",
       "owner": "",
       "founderDependency": "None",
-      "due": "",
-      "comments": ""
-    },
-    {
-      "id": "a_ac9cda4c",
-      "company": "edT",
-      "function": "People",
-      "item": "3 proposals given",
-      "status": "WIP",
-      "owner": "Rohan",
-      "founderDependency": "N",
-      "due": "27-Jan",
-      "comments": "3 proposals given"
-    },
-    {
-      "id": "a_9c046993",
-      "company": "edT",
-      "function": "Product",
-      "item": "Product",
-      "status": "WIP",
-      "owner": "",
-      "founderDependency": "None",
-      "due": "",
-      "comments": ""
-    },
-    {
-      "id": "a_f928f4df",
-      "company": "edT",
-      "function": "People",
-      "item": "Decision",
-      "status": "Done",
-      "owner": "Prasad",
-      "founderDependency": "N",
       "due": "",
       "comments": ""
     }

@@ -5,6 +5,14 @@ import os
 import io
 import json
 import unittest
+import tempfile
+import shutil
+from unittest.mock import patch
+
+# Set this before importing the app/storage modules so tests never use dashboard data.
+TEST_DATA_DIR = tempfile.mkdtemp(prefix="dashboard-tests-")
+os.environ["DASHBOARD_DATA_DIR"] = TEST_DATA_DIR
+
 from fastapi.testclient import TestClient
 from app import app
 from services.storage import get_state, save_state, get_initial_seed_data
@@ -14,8 +22,20 @@ from services.data_validator import detect_sheet_type
 
 class TestCEODashboardBackend(unittest.TestCase):
     def setUp(self):
+        self.require_auth = patch("app._require_auth", return_value={"role": "admin", "user_id": "test-admin"})
+        self.require_admin = patch("app._require_admin", return_value={"role": "admin", "user_id": "test-admin"})
+        self.require_auth.start()
+        self.require_admin.start()
         self.client = TestClient(app)
         save_state(get_initial_seed_data())
+
+    def tearDown(self):
+        self.require_admin.stop()
+        self.require_auth.stop()
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(TEST_DATA_DIR, ignore_errors=True)
 
     def test_serve_frontend(self):
         response = self.client.get('/')

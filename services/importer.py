@@ -101,7 +101,7 @@ def detect_excel_header_row(df_raw: pd.DataFrame) -> int:
 
     return best_row_idx
 
-def parse_csv_file(file_stream, filename: str) -> Tuple[str, List[Dict[str, Any]]]:
+def parse_csv_file(file_stream, filename: str, max_rows: Optional[int] = None) -> Tuple[str, List[Dict[str, Any]]]:
     """
     Parses a single CSV file stream into a list of row dicts with intelligent header row detection,
     multi-encoding resilience (UTF-8, UTF-16, Latin-1, CP1252, ISO-8859-1), and delimiter sniffing.
@@ -190,6 +190,8 @@ def parse_csv_file(file_stream, filename: str) -> Tuple[str, List[Dict[str, Any]
                         cleaned_row[clean_k] = _clean_cell_value(v)
             if any(v for v in cleaned_row.values()):
                 records.append(cleaned_row)
+                if max_rows is not None and len(records) > max_rows:
+                    raise ValueError(f"CSV exceeds the {max_rows} row limit")
     except Exception as e:
         logger.warning(f"csv.DictReader failed on {filename}: {e}, falling back to pandas parser")
         try:
@@ -208,7 +210,7 @@ def parse_csv_file(file_stream, filename: str) -> Tuple[str, List[Dict[str, Any]
 
     return sheet_name, records
 
-def parse_excel_file(file_stream) -> Dict[str, List[Dict[str, Any]]]:
+def parse_excel_file(file_stream, max_sheets: Optional[int] = None, max_rows_per_sheet: Optional[int] = None) -> Dict[str, List[Dict[str, Any]]]:
     """
     Parses all worksheets of an uploaded Excel file,
     inspecting sheets with openpyxl, auto-detecting header rows, and cleaning cells.
@@ -222,12 +224,16 @@ def parse_excel_file(file_stream) -> Dict[str, List[Dict[str, Any]]]:
         file_bytes = file_stream
 
     excel_file = pd.ExcelFile(file_bytes, engine='openpyxl')
+    if max_sheets is not None and len(excel_file.sheet_names) > max_sheets:
+        raise ValueError(f"Workbook exceeds the {max_sheets} worksheet limit")
     sheets_data = {}
 
     for sheet_name in excel_file.sheet_names:
         try:
             # First read raw worksheet without header assumptions
             df_raw = pd.read_excel(excel_file, sheet_name=sheet_name, header=None)
+            if max_rows_per_sheet is not None and len(df_raw) > max_rows_per_sheet + 15:
+                raise ValueError(f"Worksheet '{sheet_name}' exceeds the {max_rows_per_sheet} row limit")
             if df_raw.empty or df_raw.isna().all().all():
                 continue
 

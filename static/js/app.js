@@ -78,10 +78,11 @@
   let activeStatusDropdown = null;
 
   // Authentication State
-  let authToken = sessionStorage.getItem('gcc_token') || localStorage.getItem('gcc_token') || '';
+  // Authentication is carried by the HttpOnly gcc_session cookie, never JavaScript-readable storage.
+  let authToken = '';
   let currentUser = null;
   try {
-    const savedUser = localStorage.getItem('gcc_user') || localStorage.getItem('gcc_auth_user');
+    const savedUser = sessionStorage.getItem('gcc_user');
     if(savedUser) currentUser = JSON.parse(savedUser);
   } catch(e){}
 
@@ -94,9 +95,6 @@
 
   async function apiFetch(endpoint, options = {}){
     options.headers = options.headers || {};
-    if(!authToken){
-      authToken = sessionStorage.getItem('gcc_token') || localStorage.getItem('gcc_token') || '';
-    }
     if(authToken){
       if(options.headers instanceof Headers){
         options.headers.set('Authorization', `Bearer ${authToken}`);
@@ -113,9 +111,7 @@
         return await res.json();
       }
       if(res.status === 401 && endpoint !== '/api/auth/login'){
-        sessionStorage.removeItem('gcc_token');
-        localStorage.removeItem('gcc_token');
-        localStorage.removeItem('gcc_user');
+        sessionStorage.removeItem('gcc_user');
         window.location.href = '/login';
       }
       let errText = `HTTP ${res.status}: ${res.statusText}`;
@@ -132,19 +128,11 @@
   }
 
   async function checkAuthSession(){
-    if(!authToken){
-      authToken = sessionStorage.getItem('gcc_token') || localStorage.getItem('gcc_token') || '';
-    }
-    if(!authToken){
-      window.location.href = '/login';
-      return false;
-    }
     try {
       const res = await apiFetch('/api/auth/me');
       if(res && res.authenticated && res.user){
         currentUser = res.user;
-        localStorage.setItem('gcc_user', JSON.stringify(currentUser));
-        localStorage.setItem('gcc_auth_user', JSON.stringify(currentUser));
+        sessionStorage.setItem('gcc_user', JSON.stringify(currentUser));
         if(isViewer()){
           document.body.classList.add('gcc-viewer-mode');
         } else {
@@ -177,11 +165,8 @@
         body: JSON.stringify({ email: username, username, password })
       });
       if(res && res.success){
-        authToken = res.token;
         currentUser = res.user;
-        sessionStorage.setItem('gcc_token', authToken);
-        localStorage.setItem('gcc_token', authToken);
-        localStorage.setItem('gcc_user', JSON.stringify(currentUser));
+        sessionStorage.setItem('gcc_user', JSON.stringify(currentUser));
         if(isViewer()){
           document.body.classList.add('gcc-viewer-mode');
         } else {
@@ -203,11 +188,7 @@
     authToken = '';
     currentUser = null;
     sessionUnlocked = false;
-    sessionStorage.removeItem('gcc_token');
-    localStorage.removeItem('gcc_token');
-    localStorage.removeItem('gcc_user');
-    localStorage.removeItem('gcc_auth_token');
-    localStorage.removeItem('gcc_auth_user');
+    sessionStorage.removeItem('gcc_user');
     window.location.href = '/login';
   }
 
@@ -2751,7 +2732,10 @@ function onFormSubmit(e) {
   UrlFetchApp.fetch(WEBHOOK_URL, {
     method: "post",
     contentType: "application/json",
-    headers: WEBHOOK_SECRET ? { "X-Webhook-Secret": WEBHOOK_SECRET } : {},
+    headers: {
+      "X-Webhook-Secret": WEBHOOK_SECRET,
+      "X-Idempotency-Key": formResponse.getId()
+    },
     payload: JSON.stringify(payload),
     muteHttpExceptions: true
   });
