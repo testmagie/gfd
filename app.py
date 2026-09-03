@@ -4,8 +4,12 @@ Provides RESTful APIs, Google Sheets (3+ tabs) auto-sync, Multi-CSV & Excel uplo
 """
 import os
 import io
+import json
+import hmac
 import datetime
 import logging
+import time
+from collections import defaultdict, deque
 from typing import Optional, List, Dict
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
@@ -69,13 +73,38 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="CEO Dashboard API")
 
+MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))
+MAX_UPLOAD_FILES = int(os.getenv("MAX_UPLOAD_FILES", "5"))
+MAX_IMPORT_ROWS = int(os.getenv("MAX_IMPORT_ROWS", "10000"))
+MAX_EXCEL_SHEETS = int(os.getenv("MAX_EXCEL_SHEETS", "20"))
+MAX_WEBHOOK_BYTES = int(os.getenv("MAX_WEBHOOK_BYTES", str(1024 * 1024)))
+WEBHOOK_RATE_LIMIT = int(os.getenv("WEBHOOK_RATE_LIMIT", "60"))
+_webhook_requests = defaultdict(deque)
+_webhook_idempotency = {}
+cors_origins = [origin.strip() for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials=bool(cors_origins),
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def require_admin_for_mutations(request: Request, call_next):
+    """Enforce server-side RBAC for every state-changing dashboard API."""
+    public_paths = {"/api/auth/login", "/api/auth/logout", "/api/webhook", "/api/webhooks/inbound"}
+    if request.url.path.startswith("/api/") and request.method in {"POST", "PUT", "PATCH", "DELETE"} and request.url.path not in public_paths:
+        _require_admin(request)
+    return await call_next(request)
+
+def _validate_state_payload(state: Dict) -> None:
+    required_types = {"settings": dict, "actions": list, "decisions": list, "priorities": list}
+    if not isinstance(state, dict) or not all(isinstance(state.get(key), value_type) for key, value_type in required_types.items()):
+        raise HTTPException(status_code=400, detail="State must contain settings plus actions, decisions, and priorities lists.")
+    if any(not isinstance(item, dict) for key in ("actions", "decisions", "priorities") for item in state[key]):
+        raise HTTPException(status_code=400, detail="State records must be JSON objects.")
 
 # Mount static directory for CSS, JS, and static assets
 static_dir = os.path.join(os.path.dirname(__file__), "static")
@@ -322,7 +351,7 @@ async def save_dashboard_data(request: Request):
         if not isinstance(new_state, dict):
             raise HTTPException(status_code=400, detail="Invalid state payload, expected JSON object")
 
-        # Ensure schema structure (Removed sync_companies_and_statuses so admin deletions persist)
+        _validate_state_payload(new_state)
         save_state(new_state)
         return {"success": True, "lastUpdated": new_state.get("lastUpdated")}
     except HTTPException:
@@ -589,7 +618,7 @@ async def upload_files(
     - Mixed uploads
     - Supports Destination routing, Threshold exclusions, Overlap resolution strategies.
     """
-    _require_auth(request)
+    _require_admin(request)
     uploaded_files: List[UploadFile] = []
     
     # 1. Collect from files parameter
@@ -636,6 +665,8 @@ async def upload_files(
 
     if not uploaded_files:
         raise HTTPException(status_code=400, detail="No files provided. Please select at least one .xlsx, .xls, or .csv file.")
+    if len(uploaded_files) > MAX_UPLOAD_FILES:
+        raise HTTPException(status_code=413, detail=f"At most {MAX_UPLOAD_FILES} files may be uploaded at once.")
 
     effective_destination = destination or target or "all"
     
@@ -649,24 +680,24 @@ async def upload_files(
     for f in uploaded_files:
         fname = f.filename or "upload"
         fname_lower = fname.lower()
+        extension = os.path.splitext(fname_lower)[1]
+        if extension not in {".csv", ".xlsx", ".xls"}:
+            raise HTTPException(status_code=400, detail="Only .csv, .xlsx, and .xls uploads are allowed.")
         try:
             content = await f.read()
             if not content:
                 continue
+            if len(content) > MAX_UPLOAD_BYTES:
+                raise HTTPException(status_code=413, detail=f"'{fname}' exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)} MB upload limit.")
             stream = io.BytesIO(content)
 
             if fname_lower.endswith(".csv"):
-                sheet_name, records = parse_csv_file(stream, fname)
+                sheet_name, records = parse_csv_file(stream, fname, max_rows=MAX_IMPORT_ROWS)
                 if records:
                     sheets_data[sheet_name] = records
             elif fname_lower.endswith((".xlsx", ".xls")):
-                excel_sheets = parse_excel_file(stream)
+                excel_sheets = parse_excel_file(stream, max_sheets=MAX_EXCEL_SHEETS, max_rows_per_sheet=MAX_IMPORT_ROWS)
                 sheets_data.update(excel_sheets)
-            else:
-                # Try CSV parsing for plain text or generic files
-                sheet_name, records = parse_csv_file(stream, fname)
-                if records:
-                    sheets_data[sheet_name] = records
         except Exception as e:
             logger.error(f"Error parsing uploaded file '{fname}': {e}", exc_info=True)
             raise HTTPException(status_code=400, detail=f"Failed to parse '{fname}': {str(e)}")
@@ -871,10 +902,9 @@ async def login_api(request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
-    return {
+    from fastapi.responses import JSONResponse
+    response = {
         "success": True,
-        "token": user["token"],
-        "refresh_token": user.get("refresh_token", ""),
         "user": {
             "email": user["email"],
             "name": user["name"],
@@ -882,6 +912,9 @@ async def login_api(request: Request):
             "user_id": user.get("user_id", "")
         }
     }
+    result = JSONResponse(response)
+    result.set_cookie("gcc_session", user["token"], httponly=True, secure=os.getenv("COOKIE_SECURE", "true").lower() == "true", samesite="lax", max_age=60 * 60)
+    return result
 
 @app.get("/api/auth/me")
 def get_current_user_api(request: Request):
@@ -921,7 +954,7 @@ def _extract_token(request: Request) -> str:
         return auth_header[7:].strip()
     if "X-Auth-Token" in request.headers:
         return request.headers["X-Auth-Token"].strip()
-    return ""
+    return request.cookies.get("gcc_session", "")
 
 
 def _require_auth(request: Request) -> Dict:
@@ -1024,7 +1057,10 @@ async def logout_api(request: Request):
         token = request.headers["X-Auth-Token"].strip()
 
     revoke_session(token)
-    return {"success": True, "message": "Logged out successfully."}
+    from fastapi.responses import JSONResponse
+    response = JSONResponse({"success": True, "message": "Logged out successfully."})
+    response.delete_cookie("gcc_session")
+    return response
 
 @app.post("/api/auth/change-password")
 async def change_password_api(request: Request):
@@ -1056,14 +1092,38 @@ async def handle_inbound_webhook(request: Request):
     and updates dashboard state in real time.
     """
     client_ip = request.client.host if request.client else "unknown"
-    secret = (
-        request.headers.get("X-Webhook-Secret")
-        or request.query_params.get("secret")
-    )
+    now = time.monotonic()
+    recent = _webhook_requests[client_ip]
+    while recent and now - recent[0] > 60:
+        recent.popleft()
+    if len(recent) >= WEBHOOK_RATE_LIMIT:
+        raise HTTPException(status_code=429, detail="Webhook rate limit exceeded.")
+    recent.append(now)
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > MAX_WEBHOOK_BYTES:
+        raise HTTPException(status_code=413, detail="Webhook payload is too large.")
+    raw_body = await request.body()
+    if len(raw_body) > MAX_WEBHOOK_BYTES:
+        raise HTTPException(status_code=413, detail="Webhook payload is too large.")
+    secret = request.headers.get("X-Webhook-Secret", "")
+    idempotency_key = request.headers.get("X-Idempotency-Key", "").strip()
+    if not idempotency_key or len(idempotency_key) > 128:
+        raise HTTPException(status_code=400, detail="A valid X-Idempotency-Key header is required.")
+    configured_secret = os.getenv("WEBHOOK_SECRET", "").strip()
+    if not configured_secret:
+        logger.error("Webhook rejected because WEBHOOK_SECRET is not configured.")
+        raise HTTPException(status_code=503, detail="Inbound webhook is not configured.")
+    if not hmac.compare_digest(secret, configured_secret):
+        raise HTTPException(status_code=401, detail="Webhook rejected: Invalid or missing secret token.")
+    for key, seen_at in list(_webhook_idempotency.items()):
+        if now - seen_at > 86400:
+            del _webhook_idempotency[key]
+    if idempotency_key in _webhook_idempotency:
+        return {"success": True, "message": "Duplicate webhook ignored.", "duplicate": True}
     explicit_target = request.query_params.get("target")
 
     try:
-        payload = await request.json()
+        payload = json.loads(raw_body)
     except Exception as e:
         logger.warning(f"Webhook received invalid JSON from {client_ip}: {e}")
         log_webhook_event(
@@ -1075,10 +1135,8 @@ async def handle_inbound_webhook(request: Request):
         )
         raise HTTPException(status_code=400, detail="Invalid JSON payload.")
 
-    # Fallback to check body for secret or target
+    # Target may be supplied in the body, but secrets are accepted only in a header.
     if isinstance(payload, dict):
-        if not secret:
-            secret = payload.get("secret") or payload.get("secretKey")
         if not explicit_target:
             explicit_target = payload.get("target") or payload.get("destination")
 
@@ -1094,6 +1152,8 @@ async def handle_inbound_webhook(request: Request):
             raise HTTPException(status_code=401, detail=msg)
         raise HTTPException(status_code=400, detail=msg)
 
+    _webhook_idempotency[idempotency_key] = now
+
     return {
         "success": True,
         "message": msg,
@@ -1105,7 +1165,7 @@ async def handle_inbound_webhook(request: Request):
 @app.get("/api/webhooks/logs")
 def get_webhook_logs_api(request: Request):
     """Returns recent webhook activity logs. Requires authentication."""
-    _require_auth(request)
+    _require_admin(request)
     return {
         "success": True,
         "logs": _get_webhook_logs()
@@ -1114,7 +1174,7 @@ def get_webhook_logs_api(request: Request):
 @app.post("/api/webhooks/clear-logs")
 def clear_webhook_logs_api(request: Request):
     """Clears webhook activity logs. Requires authentication."""
-    _require_auth(request)
+    _require_admin(request)
     clear_webhook_logs()
     return {"success": True, "message": "Webhook activity logs cleared."}
 
