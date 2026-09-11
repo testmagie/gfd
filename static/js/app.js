@@ -33,7 +33,14 @@
     code: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
     copy: `<svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`,
     check: `<svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
-    terminal: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>`
+    terminal: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>`,
+    sun: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>`,
+    moon: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`,
+    calendar: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+    clock: `<svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+    video: `<svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect width="15" height="14" x="1" y="5" rx="2" ry="2"/></svg>`,
+    chevronLeft: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`,
+    chevronRight: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`
   };
 
   function icon(name, extraClass = ''){
@@ -41,6 +48,35 @@
     if(!extraClass) return svg;
     return svg.replace('<svg ', `<svg class="${extraClass}" `);
   }
+
+  // ==========================================================================
+  // 1b. THEME SYSTEM — Dark / Light Mode
+  // ==========================================================================
+  const ThemeManager = {
+    STORAGE_KEY: 'gcc_theme',
+    init() {
+      const saved = localStorage.getItem(this.STORAGE_KEY);
+      if (saved) {
+        document.documentElement.setAttribute('data-theme', saved);
+      } else {
+        // Respect OS preference
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+      }
+    },
+    current() {
+      return document.documentElement.getAttribute('data-theme') || 'dark';
+    },
+    toggle() {
+      const next = this.current() === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem(this.STORAGE_KEY, next);
+      applyTheme();
+      if(typeof render === 'function') render();
+      return next;
+    }
+  };
+  ThemeManager.init();
 
   // ==========================================================================
   // 2. TOAST NOTIFICATION SERVICE
@@ -285,6 +321,7 @@
         {key: 'register', label: 'Register', visible: true},
         {key: 'decisions', label: 'Decisions', visible: true},
         {key: 'priorities', label: 'Priorities', visible: true},
+        {key: 'calendar', label: 'Calendar', visible: true},
         {key: 'data', label: 'Data', visible: true},
         {key: 'webhooks', label: 'Webhooks', visible: true},
         {key: 'settings', label: 'Settings', visible: true}
@@ -365,8 +402,10 @@
     register: {company:'', status:'', function:'', owner:'', founderDependency:'', q:'', showHidden:false},
     decisions: {owner:'', founderDependency:'', q:'', showHidden:false},
     priorities: {q:''},
-    overview: {q:''}
+    overview: {q:''},
+    calendar: {company:'', q:'', year: new Date().getFullYear(), month: new Date().getMonth()}
   };
+  let selectedCalendarDate = null;
   let jumpTarget = null;
   let autoSyncTimer = null;
 
@@ -483,9 +522,22 @@
   }
 
   function applyTheme(){
+    const root = document.documentElement;
+    const isLight = ThemeManager.current() === 'light';
+
+    if(isLight){
+      // In light theme, remove dark-mode color overrides from element inline style
+      // so the crisp [data-theme="light"] stylesheet variables take full effect
+      const varsToRemove = [
+        '--attention', '--progress', '--done', '--hold', '--future',
+        '--text', '--text-muted', '--text-dim', '--table-text', '--label-text', '--table-header-text'
+      ];
+      varsToRemove.forEach(v => root.style.removeProperty(v));
+      return;
+    }
+
     if(!state || !state.settings || !state.settings.colors) return;
     const c = state.settings.colors;
-    const root = document.documentElement;
     root.style.setProperty('--attention', c.attention || '#F85149');
     root.style.setProperty('--progress', c.progress || '#58A6FF');
     root.style.setProperty('--done', c.done || '#3FB950');
@@ -2100,6 +2152,464 @@
     `;
   }
 
+  // ==========================================================================
+  // CALENDAR TAB: MONTHLY CALENDAR VIEW & GOOGLE SHEETS MEETINGS
+  // ==========================================================================
+  const MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  function getMeetingsForMonth(year, month) {
+    const meetings = state.meetings || [];
+    const monthStr = String(month + 1).padStart(2, '0');
+    const prefix = `${year}-${monthStr}`;
+    return meetings.filter(m => m && m.date && m.date.startsWith(prefix));
+  }
+
+  function getMeetingsGroupedByDate(year, month) {
+    const list = getMeetingsForMonth(year, month);
+    const map = {};
+    list.forEach(m => {
+      const d = m.date;
+      if (!map[d]) map[d] = [];
+      map[d].push(m);
+    });
+    // Sort meetings in each day by time
+    Object.keys(map).forEach(d => {
+      map[d].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    });
+    return map;
+  }
+
+  function renderCalendar() {
+    const f = filters.calendar || { company: '', q: '', year: new Date().getFullYear(), month: new Date().getMonth() };
+    const curYear = f.year !== undefined ? f.year : new Date().getFullYear();
+    const curMonth = f.month !== undefined ? f.month : new Date().getMonth();
+
+    const companies = companiesList();
+    const allMeetings = state.meetings || [];
+    const thisMonthMeetings = getMeetingsForMonth(curYear, curMonth);
+
+    // Apply company & text filter
+    let filteredMeetings = thisMonthMeetings;
+    if (f.company) {
+      filteredMeetings = filteredMeetings.filter(m => m.company === f.company);
+    }
+    if (f.q) {
+      const qLower = f.q.trim().toLowerCase();
+      filteredMeetings = filteredMeetings.filter(m =>
+        ((m.title || '') + (m.company || '') + (m.owner || '') + (m.attendees || '') + (m.description || '')).toLowerCase().includes(qLower)
+      );
+    }
+
+    // Group filtered meetings by YYYY-MM-DD
+    const meetingsByDate = {};
+    filteredMeetings.forEach(m => {
+      if (!meetingsByDate[m.date]) meetingsByDate[m.date] = [];
+      meetingsByDate[m.date].push(m);
+    });
+
+    // Calendar grid calculations
+    const firstDayIndex = new Date(curYear, curMonth, 1).getDay();
+    const daysInMonth = new Date(curYear, curMonth + 1, 0).getDate();
+    const daysInPrevMonth = new Date(curYear, curMonth, 0).getDate();
+
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    // Total cells: standard 35 or 42 grid
+    const totalCells = (firstDayIndex + daysInMonth > 35) ? 42 : 35;
+
+    let calendarDaysHtml = '';
+
+    for (let i = 0; i < totalCells; i++) {
+      let dayNumber;
+      let isCurrentMonth = true;
+      let cellDateStr = '';
+
+      if (i < firstDayIndex) {
+        // Prev month padding
+        dayNumber = daysInPrevMonth - firstDayIndex + i + 1;
+        isCurrentMonth = false;
+        const prevMonthDate = new Date(curYear, curMonth - 1, dayNumber);
+        cellDateStr = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}-${String(prevMonthDate.getDate()).padStart(2, '0')}`;
+      } else if (i >= firstDayIndex + daysInMonth) {
+        // Next month padding
+        dayNumber = i - (firstDayIndex + daysInMonth) + 1;
+        isCurrentMonth = false;
+        const nextMonthDate = new Date(curYear, curMonth + 1, dayNumber);
+        cellDateStr = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-${String(nextMonthDate.getDate()).padStart(2, '0')}`;
+      } else {
+        // Current month day
+        dayNumber = i - firstDayIndex + 1;
+        isCurrentMonth = true;
+        cellDateStr = `${curYear}-${String(curMonth + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}`;
+      }
+
+      const isToday = cellDateStr === todayStr;
+      const isSelected = selectedCalendarDate === cellDateStr;
+      const dayMeetings = meetingsByDate[cellDateStr] || [];
+
+      calendarDaysHtml += `
+        <div class="gcc-cal-day ${isCurrentMonth ? '' : 'other-month'} ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}" data-cal-date="${cellDateStr}">
+          <div class="gcc-cal-day-header">
+            <span class="gcc-cal-day-num ${isToday ? 'today-badge' : ''}">${dayNumber}</span>
+            ${dayMeetings.length ? `<span class="gcc-cal-count-badge">${dayMeetings.length} ${dayMeetings.length === 1 ? 'meeting' : 'meetings'}</span>` : ''}
+          </div>
+          <div class="gcc-cal-events">
+            ${dayMeetings.slice(0, 3).map(m => {
+              const compColor = companyColor(m.company);
+              return `
+                <div class="gcc-cal-event-pill" data-meeting-id="${m.id}" title="${escapeHtml(m.title)} (${escapeHtml(m.time || '')})" style="border-left-color:${compColor};">
+                  <span class="gcc-cal-pill-time">${escapeHtml(m.time || '')}</span>
+                  <span class="gcc-cal-pill-title">${escapeHtml(m.title)}</span>
+                </div>
+              `;
+            }).join('')}
+            ${dayMeetings.length > 3 ? `
+              <div class="gcc-cal-more" data-show-date="${cellDateStr}">+${dayMeetings.length - 3} more</div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    // Selected Date details or Upcoming Meetings side agenda
+    const activeDateMeetings = selectedCalendarDate ? (meetingsByDate[selectedCalendarDate] || []) : [];
+    const upcomingMeetings = allMeetings
+      .filter(m => m.date >= todayStr)
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
+      .slice(0, 8);
+
+    return `
+      <!-- Calendar Controls & Filters -->
+      <div class="gcc-cal-header-bar">
+        <div class="gcc-cal-month-nav">
+          <button class="gcc-btn secondary" id="btn-cal-prev" title="Previous Month">${icon('chevronLeft')}</button>
+          <button class="gcc-btn secondary" id="btn-cal-today">Today</button>
+          <button class="gcc-btn secondary" id="btn-cal-next" title="Next Month">${icon('chevronRight')}</button>
+          <div class="gcc-cal-month-title">${MONTH_NAMES[curMonth]} ${curYear}</div>
+        </div>
+
+        <div class="gcc-cal-actions">
+          <select id="f-cal-company" class="gcc-cal-select">
+            <option value="">All Portfolio Companies</option>
+            ${companies.map(c => `<option value="${c.name}" ${f.company === c.name ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
+          </select>
+          <input id="f-cal-q" placeholder="Filter meetings by topic, owner, attendee…" value="${escapeHtml(f.q || '')}" class="gcc-cal-search"/>
+          <button class="gcc-btn secondary" id="btn-cal-sync-sheets" title="Sync Meetings from Google Sheet">
+            ${isSyncingSheets ? `${icon('refresh', 'gcc-svg-spin')} Syncing…` : `${icon('cloud')} Sync Sheets`}
+          </button>
+          ${isAdmin() ? `<button class="gcc-btn primary" id="btn-cal-add-meeting">${icon('plus')} Schedule Meeting</button>` : ''}
+        </div>
+      </div>
+
+      <!-- Calendar Layout: Main Grid + Side Agenda -->
+      <div class="gcc-cal-container">
+        <div class="gcc-cal-main">
+          <!-- Day of week headers -->
+          <div class="gcc-cal-weekdays">
+            ${DAY_NAMES.map(d => `<div class="gcc-cal-weekday">${d}</div>`).join('')}
+          </div>
+          <!-- 35 or 42 grid cells -->
+          <div class="gcc-cal-grid">
+            ${calendarDaysHtml}
+          </div>
+        </div>
+
+        <!-- Side Agenda Panel -->
+        <div class="gcc-cal-sidebar">
+          <div class="gcc-cal-sidebar-card">
+            ${selectedCalendarDate ? `
+              <div class="gcc-cal-side-head">
+                <div>
+                  <div class="gcc-cal-side-eyebrow">Selected Date</div>
+                  <div class="gcc-cal-side-title">${new Date(selectedCalendarDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                </div>
+                <button class="gcc-btn secondary" id="btn-cal-clear-selection" style="font-size:11px;padding:3px 7px;">Clear</button>
+              </div>
+              <div class="gcc-cal-side-list">
+                ${activeDateMeetings.length ? activeDateMeetings.map(m => renderMeetingCard(m)).join('') : `
+                  <div class="gcc-empty" style="padding:24px 12px;">
+                    <div>No meetings scheduled for this date.</div>
+                    ${isAdmin() ? `<button class="gcc-btn secondary" id="btn-cal-add-on-date" style="margin-top:10px;font-size:11px;">${icon('plus')} Add for this date</button>` : ''}
+                  </div>
+                `}
+              </div>
+            ` : `
+              <div class="gcc-cal-side-head">
+                <div>
+                  <div class="gcc-cal-side-eyebrow">Google Sheet &amp; Scheduled</div>
+                  <div class="gcc-cal-side-title">Upcoming Agenda</div>
+                </div>
+                <span class="gcc-status-pill" style="font-size:11px;">${filteredMeetings.length} this month</span>
+              </div>
+              <div class="gcc-cal-side-list">
+                ${upcomingMeetings.length ? upcomingMeetings.map(m => renderMeetingCard(m)).join('') : `
+                  <div class="gcc-empty" style="padding:24px 12px;">
+                    No upcoming meetings found.<br>
+                    <small style="color:var(--text-dim);">Meetings added or synced from Google Sheets will appear here.</small>
+                  </div>
+                `}
+              </div>
+            `}
+          </div>
+
+          <!-- Quick Sheet Sync Info Card -->
+          <div class="gcc-cal-sync-info-card">
+            <div style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--text);margin-bottom:6px;">
+              ${icon('cloud')} Google Sheets Integration
+            </div>
+            <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 8px 0;line-height:1.4;">
+              Meetings sync automatically from worksheets named <code>Meetings</code>, <code>Calendar</code>, or <code>Schedule</code> in your Google Sheet.
+            </p>
+            <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-dim);">
+              <span>Status: <strong style="color:var(--done);">${allMeetings.length} meetings loaded</strong></span>
+              <a href="javascript:void(0)" id="link-cal-open-data" style="color:var(--progress);text-decoration:none;">Configure &rarr;</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderMeetingCard(m) {
+    const compColor = companyColor(m.company);
+    const isCompleted = (m.status || '').toLowerCase() === 'completed';
+    const isCancelled = (m.status || '').toLowerCase() === 'cancelled';
+    const statusColor = isCompleted ? 'var(--done)' : (isCancelled ? 'var(--attention)' : 'var(--progress)');
+    const statusSoft = isCompleted ? 'var(--done-soft)' : (isCancelled ? 'var(--attention-soft)' : 'var(--progress-soft)');
+
+    return `
+      <div class="gcc-meeting-card" data-meeting-card-id="${m.id}" style="border-left-color:${compColor};">
+        <div class="gcc-meeting-card-header">
+          <span class="gcc-co-tag" style="background:${compColor}22;color:${compColor};font-weight:700;">${escapeHtml(m.company || 'General')}</span>
+          <span class="gcc-a-status" style="background:${statusSoft};color:${statusColor};font-size:10px;padding:2px 6px;">${escapeHtml(m.status || 'Scheduled')}</span>
+        </div>
+        <div class="gcc-meeting-card-title">${escapeHtml(m.title)}</div>
+        <div class="gcc-meeting-card-meta">
+          <span>${icon('calendar')} ${escapeHtml(m.date || '')}</span>
+          ${m.time ? `<span>${icon('clock')} ${escapeHtml(m.time)}</span>` : ''}
+          ${m.owner ? `<span>${icon('user')} ${escapeHtml(m.owner)}</span>` : ''}
+        </div>
+        ${m.attendees ? `<div class="gcc-meeting-card-desc"><strong>Attendees:</strong> ${escapeHtml(m.attendees)}</div>` : ''}
+        ${m.description ? `<div class="gcc-meeting-card-desc">${escapeHtml(m.description)}</div>` : ''}
+        <div class="gcc-meeting-card-actions">
+          ${m.link ? `
+            <a href="${escapeHtml(m.link)}" target="_blank" rel="noopener noreferrer" class="gcc-btn secondary" style="padding:3px 8px;font-size:11px;text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
+              ${icon('video')} Join Meeting
+            </a>
+          ` : ''}
+          ${isAdmin() ? `
+            <button class="gcc-btn secondary" data-edit-meeting="${m.id}" style="padding:3px 8px;font-size:11px;margin-left:auto;">
+              ${icon('edit')} Edit
+            </button>
+            <button class="gcc-btn secondary" data-delete-meeting="${m.id}" style="padding:3px 6px;font-size:11px;color:var(--attention);" title="Delete meeting">
+              ${icon('trash')}
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  function openAddMeetingModal(defaultDate = '') {
+    const today = defaultDate || new Date().toISOString().split('T')[0];
+    const companies = companiesList();
+
+    const bodyHtml = `
+      <div class="gcc-form">
+        <label>Meeting Title / Topic *</label>
+        <input id="add-meeting-title" placeholder="e.g. Executive Portfolio Review" autofocus required/>
+
+        <div class="two">
+          <div>
+            <label>Date (YYYY-MM-DD) *</label>
+            <input type="date" id="add-meeting-date" value="${escapeHtml(today)}" required/>
+          </div>
+          <div>
+            <label>Time</label>
+            <input id="add-meeting-time" placeholder="e.g. 10:00 AM or 14:30" value="10:00 AM"/>
+          </div>
+        </div>
+
+        <div class="two">
+          <div>
+            <label>Portfolio Company</label>
+            <select id="add-meeting-company">
+              <option value="General">General / Cross-Portfolio</option>
+              ${companies.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label>Host / Owner</label>
+            <input id="add-meeting-owner" placeholder="e.g. CEO or Founder name"/>
+          </div>
+        </div>
+
+        <label>Attendees</label>
+        <input id="add-meeting-attendees" placeholder="e.g. Saurav, Devika, Tech Leads"/>
+
+        <label>Video / Meeting Link</label>
+        <input id="add-meeting-link" placeholder="e.g. https://meet.google.com/abc-defg-hij or Zoom URL"/>
+
+        <div class="two">
+          <div>
+            <label>Status</label>
+            <select id="add-meeting-status">
+              <option value="Scheduled" selected>Scheduled</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+              <option value="Rescheduled">Rescheduled</option>
+            </select>
+          </div>
+        </div>
+
+        <label>Description / Agenda</label>
+        <textarea id="add-meeting-desc" rows="3" placeholder="Key talking points, deliverables, or agenda..."></textarea>
+      </div>
+    `;
+
+    const footerHtml = `
+      <button class="gcc-btn secondary" id="btn-cancel-add-meeting">Cancel</button>
+      <button class="gcc-btn primary" id="btn-submit-add-meeting">${icon('plus')} Add Meeting</button>
+    `;
+
+    openModal('Schedule New Meeting', bodyHtml, footerHtml);
+
+    document.getElementById('btn-cancel-add-meeting').onclick = closeModal;
+    document.getElementById('btn-submit-add-meeting').onclick = async () => {
+      const title = document.getElementById('add-meeting-title').value.trim();
+      const date = document.getElementById('add-meeting-date').value.trim();
+      if (!title) { Toast.error('Meeting title is required.'); return; }
+      if (!date) { Toast.error('Meeting date is required.'); return; }
+
+      const meetingData = {
+        id: 'm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        title,
+        date,
+        time: document.getElementById('add-meeting-time').value.trim() || '10:00 AM',
+        company: document.getElementById('add-meeting-company').value,
+        owner: document.getElementById('add-meeting-owner').value.trim(),
+        attendees: document.getElementById('add-meeting-attendees').value.trim(),
+        link: document.getElementById('add-meeting-link').value.trim(),
+        status: document.getElementById('add-meeting-status').value,
+        description: document.getElementById('add-meeting-desc').value.trim()
+      };
+
+      if (!state.meetings) state.meetings = [];
+      state.meetings.unshift(meetingData);
+
+      closeModal();
+      await saveState(true);
+      Toast.success('Meeting scheduled successfully.');
+      render();
+    };
+  }
+
+  function openEditMeetingModal(meetingId) {
+    const m = (state.meetings || []).find(x => x.id === meetingId);
+    if (!m) { Toast.error('Meeting not found.'); return; }
+
+    const companies = companiesList();
+
+    const bodyHtml = `
+      <div class="gcc-form">
+        <label>Meeting Title / Topic *</label>
+        <input id="edit-meeting-title" value="${escapeHtml(m.title || '')}" required/>
+
+        <div class="two">
+          <div>
+            <label>Date (YYYY-MM-DD) *</label>
+            <input type="date" id="edit-meeting-date" value="${escapeHtml(m.date || '')}" required/>
+          </div>
+          <div>
+            <label>Time</label>
+            <input id="edit-meeting-time" value="${escapeHtml(m.time || '')}"/>
+          </div>
+        </div>
+
+        <div class="two">
+          <div>
+            <label>Portfolio Company</label>
+            <select id="edit-meeting-company">
+              <option value="General" ${m.company === 'General' ? 'selected' : ''}>General / Cross-Portfolio</option>
+              ${companies.map(c => `<option value="${escapeHtml(c.name)}" ${m.company === c.name ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label>Host / Owner</label>
+            <input id="edit-meeting-owner" value="${escapeHtml(m.owner || '')}"/>
+          </div>
+        </div>
+
+        <label>Attendees</label>
+        <input id="edit-meeting-attendees" value="${escapeHtml(m.attendees || '')}"/>
+
+        <label>Video / Meeting Link</label>
+        <input id="edit-meeting-link" value="${escapeHtml(m.link || '')}"/>
+
+        <div class="two">
+          <div>
+            <label>Status</label>
+            <select id="edit-meeting-status">
+              <option value="Scheduled" ${m.status === 'Scheduled' ? 'selected' : ''}>Scheduled</option>
+              <option value="Completed" ${m.status === 'Completed' ? 'selected' : ''}>Completed</option>
+              <option value="Cancelled" ${m.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+              <option value="Rescheduled" ${m.status === 'Rescheduled' ? 'selected' : ''}>Rescheduled</option>
+            </select>
+          </div>
+        </div>
+
+        <label>Description / Agenda</label>
+        <textarea id="edit-meeting-desc" rows="3">${escapeHtml(m.description || '')}</textarea>
+      </div>
+    `;
+
+    const footerHtml = `
+      <button class="gcc-btn secondary" id="btn-delete-meeting-modal" style="color:var(--attention);margin-right:auto;">${icon('trash')} Delete</button>
+      <button class="gcc-btn secondary" id="btn-cancel-edit-meeting">Cancel</button>
+      <button class="gcc-btn primary" id="btn-submit-edit-meeting">${icon('check')} Save Changes</button>
+    `;
+
+    openModal('Edit Scheduled Meeting', bodyHtml, footerHtml);
+
+    document.getElementById('btn-cancel-edit-meeting').onclick = closeModal;
+
+    document.getElementById('btn-delete-meeting-modal').onclick = async () => {
+      if (!confirm(`Are you sure you want to delete meeting "${m.title}"?`)) return;
+      state.meetings = (state.meetings || []).filter(x => x.id !== meetingId);
+      closeModal();
+      await saveState(true);
+      Toast.info('Meeting deleted.');
+      render();
+    };
+
+    document.getElementById('btn-submit-edit-meeting').onclick = async () => {
+      const title = document.getElementById('edit-meeting-title').value.trim();
+      const date = document.getElementById('edit-meeting-date').value.trim();
+      if (!title) { Toast.error('Meeting title is required.'); return; }
+      if (!date) { Toast.error('Meeting date is required.'); return; }
+
+      m.title = title;
+      m.date = date;
+      m.time = document.getElementById('edit-meeting-time').value.trim();
+      m.company = document.getElementById('edit-meeting-company').value;
+      m.owner = document.getElementById('edit-meeting-owner').value.trim();
+      m.attendees = document.getElementById('edit-meeting-attendees').value.trim();
+      m.link = document.getElementById('edit-meeting-link').value.trim();
+      m.status = document.getElementById('edit-meeting-status').value;
+      m.description = document.getElementById('edit-meeting-desc').value.trim();
+
+      closeModal();
+      await saveState(true);
+      Toast.success('Meeting updated.');
+      render();
+    };
+  }
+
 
   function formatBytes(bytes, decimals = 1){
     if(!+bytes) return '0 B';
@@ -2140,6 +2650,7 @@
                   <option value="register" ${gs.target==='register'?'selected':''}>Register (Action Items)</option>
                   <option value="decisions" ${gs.target==='decisions'?'selected':''}>Decisions</option>
                   <option value="priorities" ${gs.target==='priorities'?'selected':''}>Priorities</option>
+                  <option value="meetings" ${gs.target==='meetings'?'selected':''}>Meetings (Calendar)</option>
                 </select>
               </div>
               <div>
@@ -2240,6 +2751,7 @@
                 <option value="register">Register (Action Items)</option>
                 <option value="decisions">Decisions</option>
                 <option value="priorities">Priorities</option>
+                <option value="meetings">Meetings (Calendar)</option>
                 <option value="create_new">Create New Company Table…</option>
               </select>
             </div>
@@ -3005,6 +3517,10 @@ function onFormSubmit(e) {
               ${icon('logOut')} Logout
             </button>
           </div>
+          <button class="gcc-theme-toggle" id="btn-theme-toggle" title="Toggle light/dark mode">
+            <span class="theme-icon-sun">${icon('sun')}</span>
+            <span class="theme-icon-moon">${icon('moon')}</span>
+          </button>
           ${isBackendConnected && isAdmin() ? `
             <button class="gcc-btn secondary" id="btn-top-sync" title="Instant Google Sheets Sync">
               ${isSyncingSheets ? `${icon('refresh', 'gcc-svg-spin')} Syncing…` : `${icon('cloud')} Sync Sheets`}
@@ -3022,6 +3538,9 @@ function onFormSubmit(e) {
 
     const logoutBtn = document.getElementById('btn-gcc-logout');
     if(logoutBtn) logoutBtn.onclick = () => performLogout();
+
+    const themeToggle = document.getElementById('btn-theme-toggle');
+    if(themeToggle) themeToggle.onclick = () => ThemeManager.toggle();
 
     document.querySelectorAll('#gcc-nav button').forEach(b=>{
       b.onclick = ()=>{ view = b.dataset.view; render(); };
@@ -3048,6 +3567,7 @@ function onFormSubmit(e) {
     if(view==='register') v.innerHTML = renderRegister();
     if(view==='decisions') v.innerHTML = renderDecisions();
     if(view==='priorities') v.innerHTML = renderPriorities();
+    if(view==='calendar') v.innerHTML = renderCalendar();
     if(view==='data' && isAdmin()) v.innerHTML = renderData();
     if(view==='webhooks' && isAdmin()) v.innerHTML = renderWebhooks();
     if(view==='settings' && isAdmin()) v.innerHTML = renderSettings();
@@ -3454,6 +3974,137 @@ function onFormSubmit(e) {
             wireView();
           }
         };
+      }
+    }
+
+    if(view==='calendar'){
+      const prevBtn = document.getElementById('btn-cal-prev');
+      if(prevBtn) prevBtn.onclick = ()=>{
+        if(filters.calendar.month === 0){
+          filters.calendar.month = 11;
+          filters.calendar.year--;
+        } else {
+          filters.calendar.month--;
+        }
+        render();
+      };
+
+      const nextBtn = document.getElementById('btn-cal-next');
+      if(nextBtn) nextBtn.onclick = ()=>{
+        if(filters.calendar.month === 11){
+          filters.calendar.month = 0;
+          filters.calendar.year++;
+        } else {
+          filters.calendar.month++;
+        }
+        render();
+      };
+
+      const todayBtn = document.getElementById('btn-cal-today');
+      if(todayBtn) todayBtn.onclick = ()=>{
+        const now = new Date();
+        filters.calendar.year = now.getFullYear();
+        filters.calendar.month = now.getMonth();
+        selectedCalendarDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        render();
+      };
+
+      const fComp = document.getElementById('f-cal-company');
+      if(fComp) fComp.onchange = e=>{
+        filters.calendar.company = e.target.value;
+        render();
+      };
+
+      const fQ = document.getElementById('f-cal-q');
+      if(fQ) fQ.oninput = e=>{
+        filters.calendar.q = e.target.value;
+        render();
+      };
+
+      const syncSheetsBtn = document.getElementById('btn-cal-sync-sheets');
+      if(syncSheetsBtn) syncSheetsBtn.onclick = ()=> syncGoogleSheets(true);
+
+      const addMeetingBtn = document.getElementById('btn-cal-add-meeting');
+      if(addMeetingBtn) addMeetingBtn.onclick = ()=> openAddMeetingModal(selectedCalendarDate || '');
+
+      const addOnDateBtn = document.getElementById('btn-cal-add-on-date');
+      if(addOnDateBtn) addOnDateBtn.onclick = ()=> openAddMeetingModal(selectedCalendarDate || '');
+
+      const clearSelBtn = document.getElementById('btn-cal-clear-selection');
+      if(clearSelBtn) clearSelBtn.onclick = ()=>{
+        selectedCalendarDate = null;
+        render();
+      };
+
+      const openDataLink = document.getElementById('link-cal-open-data');
+      if(openDataLink) openDataLink.onclick = ()=>{
+        if(isAdmin()){
+          view = 'data';
+          render();
+        } else {
+          Toast.info('Google Sheets sync settings are managed by portfolio administrators.');
+        }
+      };
+
+      // Day cell clicks: select date
+      document.querySelectorAll('[data-cal-date]').forEach(cell=>{
+        cell.onclick = (e)=>{
+          if(e.target.closest('[data-meeting-id]')) return;
+          const date = cell.dataset.calDate;
+          selectedCalendarDate = (selectedCalendarDate === date) ? null : date;
+          render();
+        };
+      });
+
+      // Meeting pill or card clicks: view/edit
+      document.querySelectorAll('[data-meeting-id], [data-meeting-card-id]').forEach(el=>{
+        el.onclick = (e)=>{
+          if(e.target.closest('a') || e.target.closest('[data-delete-meeting]')) return;
+          const mId = el.dataset.meetingId || el.dataset.meetingCardId;
+          if(isAdmin()){
+            openEditMeetingModal(mId);
+          } else {
+            const m = (state.meetings || []).find(x => x.id === mId);
+            if(m){
+              const details = [
+                `<strong>Date:</strong> ${escapeHtml(m.date || '')} ${escapeHtml(m.time || '')}`,
+                `<strong>Company:</strong> ${escapeHtml(m.company || 'General')}`,
+                m.owner ? `<strong>Host:</strong> ${escapeHtml(m.owner)}` : '',
+                m.attendees ? `<strong>Attendees:</strong> ${escapeHtml(m.attendees)}` : '',
+                m.status ? `<strong>Status:</strong> ${escapeHtml(m.status)}` : '',
+                m.link ? `<strong>Meeting Link:</strong> <a href="${escapeHtml(m.link)}" target="_blank" style="color:var(--progress);">${escapeHtml(m.link)}</a>` : '',
+                m.description ? `<p style="margin-top:8px;">${escapeHtml(m.description)}</p>` : ''
+              ].filter(Boolean).join('<br>');
+
+              openModal(escapeHtml(m.title), `<div style="font-size:13px;line-height:1.6;color:var(--table-text);">${details}</div>`, `<button class="gcc-btn primary" id="btn-close-meeting-view">Close</button>`);
+              const closeBtn = document.getElementById('btn-close-meeting-view');
+              if(closeBtn) closeBtn.onclick = closeModal;
+            }
+          }
+        };
+      });
+
+      // Admin direct Edit/Delete buttons on meeting cards
+      if(isAdmin()){
+        document.querySelectorAll('[data-edit-meeting]').forEach(btn=>{
+          btn.onclick = (e)=>{
+            e.stopPropagation();
+            openEditMeetingModal(btn.dataset.editMeeting);
+          };
+        });
+
+        document.querySelectorAll('[data-delete-meeting]').forEach(btn=>{
+          btn.onclick = async (e)=>{
+            e.stopPropagation();
+            const mId = btn.dataset.deleteMeeting;
+            const m = (state.meetings || []).find(x => x.id === mId);
+            if(!confirm(`Delete meeting "${m ? m.title : 'this meeting'}"?`)) return;
+            state.meetings = (state.meetings || []).filter(x => x.id !== mId);
+            await saveState(true);
+            Toast.info('Meeting deleted.');
+            render();
+          };
+        });
       }
     }
 

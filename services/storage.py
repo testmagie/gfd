@@ -90,6 +90,7 @@ def get_default_settings() -> Dict[str, Any]:
             {"key": "register", "label": "Register", "visible": True},
             {"key": "decisions", "label": "Decisions", "visible": True},
             {"key": "priorities", "label": "Priorities", "visible": True},
+            {"key": "calendar", "label": "Calendar", "visible": True},
             {"key": "data", "label": "Data", "visible": True},
             {"key": "webhooks", "label": "Webhooks", "visible": True},
             {"key": "settings", "label": "Settings", "visible": True}
@@ -164,6 +165,68 @@ def get_initial_seed_data() -> Dict[str, Any]:
             {"id": "p5", "priority": "3.0", "group": "Aarna Product", "focusArea": "Digital Stores / Whitelight", "why": "Product readiness for GTM", "horizon": "Next 30 days"},
             {"id": "p6", "priority": "4.0", "group": "Aarna GTM", "focusArea": "Digital Stores / Creatorpreneurs", "why": "", "horizon": "Next 60 days"},
             {"id": "p7", "priority": "5.0", "group": "Miraee", "focusArea": "Miraee Product", "why": "First source of revenue generation", "horizon": "Next 15 days"}
+        ],
+        "meetings": [
+            {
+                "id": "m1",
+                "title": "Executive Portfolio Review & Strategy Sync",
+                "date": "2026-09-15",
+                "time": "10:00 AM",
+                "company": "Pranik",
+                "attendees": "CEO, Saurav, Devika",
+                "owner": "CEO",
+                "link": "https://meet.google.com/abc-defg-hij",
+                "status": "Scheduled",
+                "description": "Bi-weekly portfolio performance and unit economics review with founders."
+            },
+            {
+                "id": "m2",
+                "title": "Aarna Creatorpreneur Studio (CCS) Launch Plan",
+                "date": "2026-09-18",
+                "time": "02:30 PM",
+                "company": "Aarna",
+                "attendees": "Saurav, Content Team, Ops Lead",
+                "owner": "Saurav",
+                "link": "https://meet.google.com/xyz-uvwx-rst",
+                "status": "Scheduled",
+                "description": "Final review of Creatorpreneur Studio roll-out schedule and marketing campaign."
+            },
+            {
+                "id": "m3",
+                "title": "Abhee Tech Architecture & AI Roadmap Demo",
+                "date": "2026-09-22",
+                "time": "11:00 AM",
+                "company": "Abhee",
+                "attendees": "CTO, Engineering Leads, CEO",
+                "owner": "CTO",
+                "link": "https://zoom.us/j/1234567890",
+                "status": "Scheduled",
+                "description": "Technical deep dive on architecture modernization and LLM assistant pipeline."
+            },
+            {
+                "id": "m4",
+                "title": "Founder Dependency Clearance & Blocker Resolution",
+                "date": "2026-09-24",
+                "time": "04:00 PM",
+                "company": "General",
+                "attendees": "Executive Team, Portfolio Founders",
+                "owner": "CEO",
+                "link": "https://meet.google.com/qwe-rtyu-iop",
+                "status": "Scheduled",
+                "description": "Rapid clearance of all items flagged with founder dependencies across portfolio."
+            },
+            {
+                "id": "m5",
+                "title": "Q3 Board Strategy & Governance Committee",
+                "date": "2026-09-28",
+                "time": "09:30 AM",
+                "company": "Miraee",
+                "attendees": "Board Directors, CFO, Legal Advisor",
+                "owner": "Board Secretary",
+                "link": "https://zoom.us/j/9876543210",
+                "status": "Scheduled",
+                "description": "Quarterly governance review, risk register assessment, and capital allocation."
+            }
         ]
     }
 
@@ -216,6 +279,22 @@ def get_state() -> Dict[str, Any]:
             for k, v in default_set.items():
                 if k not in current_set:
                     current_set[k] = v
+
+            # Guarantee Calendar tab is present
+            current_tabs = current_set.setdefault('tabs', [])
+            if not any(t.get('key') == 'calendar' for t in current_tabs):
+                prio_idx = next((i for i, t in enumerate(current_tabs) if t.get('key') == 'priorities'), -1)
+                cal_tab = {"key": "calendar", "label": "Calendar", "visible": True}
+                if prio_idx != -1:
+                    current_tabs.insert(prio_idx + 1, cal_tab)
+                else:
+                    current_tabs.append(cal_tab)
+
+            # Guarantee meetings key is present with initial seed if empty
+            if 'meetings' not in state or not state.get('meetings'):
+                state['meetings'] = get_initial_seed_data().get('meetings', [])
+                _write_json_file(state)
+
             return state
         except Exception as e:
             seed = get_initial_seed_data()

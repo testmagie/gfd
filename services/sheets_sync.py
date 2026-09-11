@@ -412,6 +412,8 @@ def normalize_target_key(target: Optional[str]) -> str:
         return "decisions"
     if t in ["priorities", "priority", "okr", "focus"]:
         return "priorities"
+    if t in ["meetings", "meeting", "calendar", "events", "schedule"]:
+        return "meetings"
     if t in ["create_new", "new_table", "new_company"]:
         return "create_new"
     return "all"

@@ -458,14 +458,53 @@ PRIORITY_CANDIDATES = [
     'Work Item', 'Scope', 'Target'
 ]
 
+MEETING_TITLE_CANDIDATES = [
+    'Meeting', 'Meeting Title', 'Title', 'Topic', 'Subject', 'Event', 'Name', 'Item',
+    'Agenda', 'Call', 'Summary', 'Meeting Name', 'Event Name', 'Discussion', 'Session'
+]
+
+MEETING_DATE_CANDIDATES = [
+    'Date', 'Meeting Date', 'When', 'Schedule Date', 'Day', 'Due Date', 'Due', 'Start Date', 'Date & Time', 'Meeting Day'
+]
+
+MEETING_TIME_CANDIDATES = [
+    'Time', 'Start Time', 'Meeting Time', 'Hour', 'Slot', 'Duration', 'When', 'Timing'
+]
+
+MEETING_ATTENDEES_CANDIDATES = [
+    'Attendees', 'Participants', 'Who', 'Guests', 'Invitees', 'Members', 'People', 'Team', 'With'
+]
+
+MEETING_OWNER_CANDIDATES = [
+    'Owner', 'Host', 'Organizer', 'Lead', 'Presenter', 'Contact', 'Created By', 'Facilitator'
+]
+
+MEETING_COMPANY_CANDIDATES = [
+    'Company', 'Client', 'Project', 'Organization', 'Group', 'Entity'
+]
+
+MEETING_LINK_CANDIDATES = [
+    'Link', 'Meeting Link', 'Zoom', 'Google Meet', 'URL', 'Location', 'Room', 'Join URL', 'Join Link', 'Address', 'Place'
+]
+
+MEETING_STATUS_CANDIDATES = [
+    'Status', 'State', 'Meeting Status'
+]
+
+MEETING_DESCRIPTION_CANDIDATES = [
+    'Notes', 'Description', 'Agenda', 'Comments', 'Details', 'Summary', 'Minutes', 'Remarks'
+]
+
 def detect_sheet_type(sheet_name: str, rows: List[Dict[str, Any]]) -> str:
     """
-    Intelligently determines whether a worksheet represents Decisions, Priorities, or Action Items.
+    Intelligently determines whether a worksheet represents Decisions, Priorities, Meetings, or Action Items.
     Checks sheet name first, then inspects header columns if the sheet name is generic.
     """
     name_lower = str(sheet_name).lower().strip()
     
     # 1. Sheet name keyword matching
+    if any(k in name_lower for k in ['meeting', 'meetings', 'calendar', 'schedule', 'schedules', 'events', 'agenda', 'call', 'calls', 'appointment', 'appointments', 'sync']):
+        return 'meetings'
     if any(k in name_lower for k in ['decision', 'decisions', 'dq', 'decision queue', 'approval', 'approvals', 'verdict', 'questions']):
         return 'decisions'
     if any(k in name_lower for k in ['priority', 'priorities', 'focus', 'strategic priorities', 'okr', 'okrs', 'roadmap', 'strategic']):
@@ -477,11 +516,15 @@ def detect_sheet_type(sheet_name: str, rows: List[Dict[str, Any]]) -> str:
     if rows and isinstance(rows, list) and len(rows) > 0 and isinstance(rows[0], dict):
         cols = list(rows[0].keys())
         
+        meeting_title_col = find_best_column(cols, MEETING_TITLE_CANDIDATES)
+        meeting_date_col = find_best_column(cols, MEETING_DATE_CANDIDATES)
         decision_col = find_best_column(cols, ['Decision', 'Decision Required', 'Decision Title', 'Topic', 'Question', 'Questions'])
         impact_col = find_best_column(cols, ['Impact', 'Impact if delayed', 'Risk'])
         focus_col = find_best_column(cols, ['Focus Area', 'Strategic Focus', 'Initiative', 'Objective', 'OKR', 'Why', 'Horizon'])
         item_col = find_best_column(cols, ['Action Item', 'Item', 'Task', 'Tasks', 'Action', 'Work Item', 'Activity', 'Deliverable'])
 
+        if meeting_date_col and meeting_title_col and not impact_col and not focus_col:
+            return 'meetings'
         if decision_col and (impact_col or not item_col):
             return 'decisions'
         if focus_col and not item_col:
@@ -660,6 +703,106 @@ def normalize_priority_item(raw_dict: Dict[str, Any]) -> Optional[Dict[str, Any]
         "focusArea": focus,
         "why": why,
         "horizon": horizon
+    }
+
+def normalize_meeting_item(raw_dict: Dict[str, Any], default_company: str = 'General') -> Optional[Dict[str, Any]]:
+    """Normalizes a dictionary into a standard meeting object for the calendar."""
+    if not raw_dict or not isinstance(raw_dict, dict):
+        return None
+
+    cols = list(raw_dict.keys())
+
+    # 1. Match title / topic
+    title_col = find_best_column(cols, MEETING_TITLE_CANDIDATES)
+    title_text = _clean_str(raw_dict.get(title_col)) if title_col else ''
+
+    if not title_text:
+        # Fallback: Find primary text column
+        for c in cols:
+            val = _clean_str(raw_dict.get(c))
+            if val and len(val) >= 3 and not parse_date_safely(val):
+                title_text = val
+                break
+
+    if not title_text:
+        return None
+
+    # 2. Match date
+    date_col = find_best_column(cols, MEETING_DATE_CANDIDATES)
+    raw_date = raw_dict.get(date_col) if date_col else None
+    parsed_date = parse_date_safely(raw_date)
+    date_str = parsed_date.strftime('%Y-%m-%d') if parsed_date else ''
+
+    # If date is missing from date_col, scan other fields for a date
+    if not date_str:
+        for c, v in raw_dict.items():
+            pd_val = parse_date_safely(v)
+            if pd_val:
+                date_str = pd_val.strftime('%Y-%m-%d')
+                break
+
+    # 3. Match time
+    time_col = find_best_column(cols, MEETING_TIME_CANDIDATES)
+    time_str = _clean_str(raw_dict.get(time_col)) if time_col else ''
+    if not time_str and raw_date and any(k in str(raw_date).lower() for k in ['am', 'pm', ':']):
+        m_time = re.search(r'(\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp][Mm])?)', str(raw_date))
+        if m_time:
+            time_str = m_time.group(1)
+
+    # 4. Match company
+    company_col = find_best_column(cols, MEETING_COMPANY_CANDIDATES)
+    company = _clean_str(raw_dict.get(company_col), default_company) if company_col else default_company
+    if not company:
+        company = default_company
+
+    # 5. Match attendees
+    attendees_col = find_best_column(cols, MEETING_ATTENDEES_CANDIDATES)
+    attendees = _clean_str(raw_dict.get(attendees_col)) if attendees_col else ''
+
+    # 6. Match owner / host
+    owner_col = find_best_column(cols, MEETING_OWNER_CANDIDATES)
+    owner = _clean_str(raw_dict.get(owner_col)) if owner_col else ''
+
+    # 7. Match link / location
+    link_col = find_best_column(cols, MEETING_LINK_CANDIDATES)
+    link = _clean_str(raw_dict.get(link_col)) if link_col else ''
+
+    # 8. Match status
+    status_col = find_best_column(cols, MEETING_STATUS_CANDIDATES)
+    status_raw = _clean_str(raw_dict.get(status_col)) if status_col else ''
+    status = 'Scheduled'
+    if status_raw:
+        s_low = status_raw.lower()
+        if any(k in s_low for k in ['done', 'complete', 'completed', 'held', 'passed']):
+            status = 'Completed'
+        elif any(k in s_low for k in ['cancel', 'cancelled', 'canceled']):
+            status = 'Cancelled'
+        elif any(k in s_low for k in ['resched', 'postpone', 'moved']):
+            status = 'Rescheduled'
+        else:
+            status = status_raw.capitalize()
+
+    # 9. Match description / agenda
+    desc_col = find_best_column(cols, MEETING_DESCRIPTION_CANDIDATES)
+    description = _clean_str(raw_dict.get(desc_col)) if desc_col else ''
+
+    # Unique id
+    id_col = find_best_column(cols, ['ID', 'Meeting ID'])
+    record_id = _clean_str(raw_dict.get(id_col)) if id_col else ''
+    if not record_id:
+        record_id = _clean_str(raw_dict.get('id')) or f"m_{uuid.uuid4().hex[:8]}"
+
+    return {
+        'id': record_id,
+        'title': title_text,
+        'date': date_str or datetime.date.today().strftime('%Y-%m-%d'),
+        'time': time_str or '10:00 AM',
+        'company': company,
+        'attendees': attendees,
+        'owner': owner,
+        'link': link,
+        'status': status,
+        'description': description
     }
 
 def sync_companies_and_statuses(state: Dict[str, Any]) -> Dict[str, Any]:

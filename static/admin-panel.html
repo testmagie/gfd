@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Prevent flash of wrong theme -->
+  <script>
+    (function(){
+      var t = localStorage.getItem('gcc_theme');
+      if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Panel — User Management</title>
@@ -470,6 +478,78 @@
       font-weight: 700;
       color: #94a3b8;
     }
+
+    /* ── Light Mode Overrides for Admin Panel ── */
+    .admin-icon-sun { display: none; }
+    .admin-icon-moon { display: inline-block; }
+    [data-theme="light"] .admin-icon-sun { display: inline-block; }
+    [data-theme="light"] .admin-icon-moon { display: none; }
+
+    [data-theme="light"] .ap-header-title h1 { color: #1e293b; }
+    [data-theme="light"] .ap-header-title p { color: #64748b; }
+    [data-theme="light"] .btn-ghost {
+      background: rgba(0, 0, 0, 0.05);
+      border-color: rgba(0, 0, 0, 0.12);
+      color: #475569;
+    }
+    [data-theme="light"] .btn-ghost:hover {
+      background: rgba(0, 0, 0, 0.09);
+      color: #0f172a;
+    }
+    [data-theme="light"] .ap-card {
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+    }
+    [data-theme="light"] .ap-card-header {
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+    [data-theme="light"] .ap-card-header h2 { color: #1e293b; }
+    [data-theme="light"] .ap-card-header p { color: #64748b; }
+    [data-theme="light"] .form-label { color: #475569; }
+    [data-theme="light"] .form-input,
+    [data-theme="light"] .form-select {
+      background: #f8fafc;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      color: #1e293b;
+    }
+    [data-theme="light"] .form-select option {
+      background: #ffffff;
+      color: #1e293b;
+    }
+    [data-theme="light"] .form-input::placeholder { color: #94a3b8; }
+    [data-theme="light"] .role-option label {
+      background: #f8fafc;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    [data-theme="light"] .role-option label:hover {
+      border-color: rgba(99, 102, 241, 0.5);
+      background: rgba(99, 102, 241, 0.05);
+    }
+    [data-theme="light"] .role-option input:checked + label {
+      border-color: #6366f1;
+      background: rgba(99, 102, 241, 0.1);
+    }
+    [data-theme="light"] .role-name { color: #1e293b; }
+    [data-theme="light"] thead th {
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      color: #64748b;
+    }
+    [data-theme="light"] tbody tr {
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    [data-theme="light"] tbody tr:hover {
+      background: rgba(0, 0, 0, 0.025);
+    }
+    [data-theme="light"] tbody td { color: #334155; }
+    [data-theme="light"] .user-email { color: #0f172a; }
+    [data-theme="light"] .stats-bar {
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+    }
+    [data-theme="light"] .stat-count { color: #1e293b; }
+    [data-theme="light"] .shimmer-bar {
+      background: linear-gradient(90deg, rgba(0,0,0,0.04) 25%, rgba(0,0,0,0.08) 50%, rgba(0,0,0,0.04) 75%);
+    }
   </style>
 </head>
 <body>
@@ -493,6 +573,11 @@
           </div>
         </div>
         <div class="ap-header-actions">
+          <button id="admin-theme-toggle" class="btn-sm btn-ghost" title="Toggle light/dark mode" aria-label="Toggle light/dark mode" style="padding: 8px 12px; gap: 6px;">
+            <i data-lucide="sun" class="admin-icon-sun"></i>
+            <i data-lucide="moon" class="admin-icon-moon"></i>
+            <span id="admin-theme-text">Theme</span>
+          </button>
           <a href="/" class="btn-sm btn-ghost" id="back-btn"><i data-lucide="arrow-left"></i> Dashboard</a>
           <button class="btn-sm btn-danger" id="logout-btn"><i data-lucide="log-out"></i> Sign Out</button>
         </div>
@@ -822,6 +907,16 @@
     });
 
     // ── Init ──────────────────────────────────────────────────────────
+    const adminThemeBtn = $('admin-theme-toggle');
+    if (adminThemeBtn) {
+      adminThemeBtn.addEventListener('click', () => {
+        const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+        const next = cur === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('gcc_theme', next);
+      });
+    }
+
     (async () => {
       await guardAdmin();
       lucide.createIcons();
