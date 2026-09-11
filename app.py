@@ -542,6 +542,70 @@ def delete_priority(priority_id: str, request: Request):
     return {"success": True, "deleted": priority_id}
 
 # ==========================================
+# Meetings / Calendar API
+# ==========================================
+
+@app.post("/api/meetings")
+async def create_meeting(request: Request):
+    """Creates a new scheduled meeting for the calendar. Admin-only."""
+    _require_admin(request)
+    body = await request.json()
+    state = get_state()
+    meetings = state.setdefault("meetings", [])
+    
+    meeting_id = body.get("id") or f"m_{int(time.time())}"
+    new_meeting = {
+        "id": meeting_id,
+        "title": body.get("title", "Untitled Meeting"),
+        "date": body.get("date", datetime.date.today().strftime("%Y-%m-%d")),
+        "time": body.get("time", "10:00 AM"),
+        "company": body.get("company", "General"),
+        "attendees": body.get("attendees", ""),
+        "owner": body.get("owner", ""),
+        "link": body.get("link", ""),
+        "status": body.get("status", "Scheduled"),
+        "description": body.get("description", "")
+    }
+    meetings.append(new_meeting)
+    save_state(state)
+    return {"success": True, "meeting": new_meeting}
+
+@app.put("/api/meetings/{meeting_id}")
+async def update_meeting(meeting_id: str, request: Request):
+    """Updates an existing scheduled meeting. Admin-only."""
+    _require_admin(request)
+    updates = await request.json()
+    state = get_state()
+    meetings = state.setdefault("meetings", [])
+    
+    found = False
+    for m in meetings:
+        if str(m.get("id")) == str(meeting_id):
+            m.update(updates)
+            found = True
+            break
+            
+    if not found:
+        raise HTTPException(status_code=404, detail=f"Meeting with ID '{meeting_id}' not found")
+        
+    save_state(state)
+    return {"success": True, "meeting_id": meeting_id}
+
+@app.delete("/api/meetings/{meeting_id}")
+def delete_meeting(meeting_id: str, request: Request):
+    """Deletes a scheduled meeting. Admin-only."""
+    _require_admin(request)
+    state = get_state()
+    orig_len = len(state.get("meetings", []))
+    state["meetings"] = [m for m in state.get("meetings", []) if str(m.get("id")) != str(meeting_id)]
+    if len(state["meetings"]) == orig_len:
+        raise HTTPException(status_code=404, detail=f"Meeting with ID '{meeting_id}' not found")
+        
+    save_state(state)
+    return {"success": True, "deleted": meeting_id}
+
+
+# ==========================================
 # Settings API
 # ==========================================
 

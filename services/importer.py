@@ -19,6 +19,7 @@ from services.data_validator import (
     normalize_action_item,
     normalize_decision_item,
     normalize_priority_item,
+    normalize_meeting_item,
     sync_companies_and_statuses,
     detect_sheet_type,
     evaluate_row_exclusion,
@@ -288,6 +289,8 @@ def normalize_destination_key(destination: Optional[str]) -> str:
         return "decisions"
     if d in ["priorities", "priority", "okr", "focus"]:
         return "priorities"
+    if d in ["meetings", "meeting", "calendar", "events", "schedule"]:
+        return "meetings"
     if d in ["create_new", "new_company", "company"]:
         return "create_new"
     return "all"
@@ -298,6 +301,7 @@ class ImportContext:
         self.actions_list = current_state.get('actions', [])
         self.decisions_list = current_state.get('decisions', [])
         self.priorities_list = current_state.get('priorities', [])
+        self.meetings_list = current_state.setdefault('meetings', [])
 
         self.action_id_map: Dict[str, int] = {}
         self.action_spec_map: Dict[str, List[int]] = {}
@@ -349,6 +353,88 @@ class ImportContext:
 
         self.matched_priorities: Set[int] = set()
         self.new_priorities: List[Dict[str, Any]] = []
+
+        self.meeting_id_map: Dict[str, int] = {}
+        self.meeting_spec_map: Dict[str, List[int]] = {}
+
+        for idx, m in enumerate(self.meetings_list):
+            if m.get('id'):
+                self.meeting_id_map[str(m['id']).lower()] = idx
+            title = _simplify(m.get('title', ''))
+            date = str(m.get('date', '')).strip()
+            self.meeting_spec_map.setdefault(f"{title}::{date}", []).append(idx)
+
+        self.matched_meetings: Set[int] = set()
+        self.new_meetings: List[Dict[str, Any]] = []
+
+def _process_meeting_record(norm: Dict[str, Any], ctx: ImportContext, mode_key: str, strategy_key: str, metrics: Dict[str, Any], sheet_stat: Dict[str, Any]):
+    """Processes a single normalized meeting record through 1-to-1 matching and conflict resolution."""
+    if mode_key == "replace":
+        norm["id"] = norm.get("id") or f"m_{uuid.uuid4().hex[:8]}"
+        ctx.new_meetings.append(norm)
+        metrics["appended"] += 1
+        metrics.setdefault("meetings", 0)
+        metrics["meetings"] += 1
+        sheet_stat["appended"] += 1
+        return
+
+    if mode_key == "append":
+        norm["id"] = f"m_{uuid.uuid4().hex[:8]}"
+        ctx.new_meetings.append(norm)
+        metrics["appended"] += 1
+        metrics.setdefault("meetings", 0)
+        metrics["meetings"] += 1
+        sheet_stat["appended"] += 1
+        return
+
+    matched_idx = None
+    if norm.get("id"):
+        norm_id = str(norm["id"]).lower()
+        if norm_id in ctx.meeting_id_map:
+            candidate = ctx.meeting_id_map[norm_id]
+            if candidate not in ctx.matched_meetings:
+                matched_idx = candidate
+
+    if matched_idx is None:
+        title = _simplify(norm.get("title", ""))
+        date = str(norm.get("date", "")).strip()
+        spec_k = f"{title}::{date}"
+        if spec_k in ctx.meeting_spec_map:
+            for c_idx in ctx.meeting_spec_map[spec_k]:
+                if c_idx not in ctx.matched_meetings:
+                    matched_idx = c_idx
+                    break
+
+    if matched_idx is not None:
+        ctx.matched_meetings.add(matched_idx)
+        existing_meeting = ctx.meetings_list[matched_idx]
+        diffs = detect_record_diff(existing_meeting, norm)
+
+        if not diffs:
+            metrics["skipped"] += 1
+            sheet_stat["skipped"] += 1
+            return
+
+        metrics["updated"] += 1
+        metrics.setdefault("meetings", 0)
+        metrics["meetings"] += 1
+        sheet_stat["updated"] += 1
+
+        if strategy_key == "existing_wins":
+            for k, (e_val, i_val) in diffs.items():
+                if not e_val and i_val:
+                    existing_meeting[k] = i_val
+        else:
+            for k, (_, i_val) in diffs.items():
+                if i_val:
+                    existing_meeting[k] = i_val
+    else:
+        norm["id"] = norm.get("id") or f"m_{uuid.uuid4().hex[:8]}"
+        ctx.new_meetings.append(norm)
+        metrics["appended"] += 1
+        metrics.setdefault("meetings", 0)
+        metrics["meetings"] += 1
+        sheet_stat["appended"] += 1
 
 def _process_action_record(norm: Dict[str, Any], ctx: ImportContext, mode_key: str, strategy_key: str, metrics: Dict[str, Any], sheet_stat: Dict[str, Any]):
     """Processes a single normalized action record through 1-to-1 matching and conflict resolution."""
@@ -805,11 +891,36 @@ def process_dataset_import(
 
                 _process_priority_record(norm, ctx, mode_key, strategy_key, metrics, sheet_stat)
 
+        elif dest_key == "meetings":
+            default_comp = "General"
+            if not any(k == name_lower for k in ['meetings', 'meeting', 'calendar', 'schedule', 'sheet1', 'data', 'general', 'upload']):
+                default_comp = str(sheet_name).strip()
+            for r in rows:
+                norm = normalize_meeting_item(r, default_company=default_comp)
+                if not norm:
+                    metrics["skipped"] += 1
+                    sheet_stat["skipped"] += 1
+                    metrics["exclusion_reasons"]["empty_or_invalid"] = metrics["exclusion_reasons"].get("empty_or_invalid", 0) + 1
+                    continue
+                _process_meeting_record(norm, ctx, mode_key, strategy_key, metrics, sheet_stat)
+
         else:
             # dest_key == 'all': Smart auto-detection with fallback cascade
             detected_type = detect_sheet_type(sheet_name, rows)
             
-            if detected_type == 'decisions':
+            if detected_type == 'meetings':
+                default_comp = "General"
+                if not any(k == name_lower for k in ['meetings', 'meeting', 'calendar', 'schedule', 'sheet1', 'data', 'general', 'upload']):
+                    default_comp = str(sheet_name).strip()
+                for r in rows:
+                    norm = normalize_meeting_item(r, default_company=default_comp)
+                    if not norm:
+                        metrics["skipped"] += 1
+                        sheet_stat["skipped"] += 1
+                        continue
+                    _process_meeting_record(norm, ctx, mode_key, strategy_key, metrics, sheet_stat)
+
+            elif detected_type == 'decisions':
                 for r in rows:
                     norm = normalize_decision_item(r)
                     if not norm:
@@ -908,6 +1019,8 @@ def process_dataset_import(
             current_state["decisions"] = ctx.new_decisions
         elif dest_key == "priorities":
             current_state["priorities"] = ctx.new_priorities
+        elif dest_key == "meetings":
+            current_state["meetings"] = ctx.new_meetings
         elif dest_key == "create_new":
             filtered_actions = [a for a in current_state.get("actions", []) if a.get("company") != target_company]
             filtered_actions.extend(ctx.new_actions)
@@ -919,6 +1032,8 @@ def process_dataset_import(
                 current_state["decisions"] = ctx.new_decisions
             if ctx.new_priorities:
                 current_state["priorities"] = ctx.new_priorities
+            if ctx.new_meetings:
+                current_state["meetings"] = ctx.new_meetings
     elif mode_key == "delete_merge":
         # Merge + delete unmatched: Remove any existing record that was NOT matched
         # by an incoming CSV row. Dashboard edits on MATCHED records are preserved.
@@ -943,6 +1058,13 @@ def process_dataset_import(
             ]
             metrics["deleted"] += len(ctx.priorities_list) - len(kept_priorities)
             current_state["priorities"] = kept_priorities + ctx.new_priorities
+        if dest_key in ("meetings", "all"):
+            kept_meetings = [
+                m for idx, m in enumerate(ctx.meetings_list)
+                if idx in ctx.matched_meetings
+            ]
+            metrics["deleted"] += len(ctx.meetings_list) - len(kept_meetings)
+            current_state["meetings"] = kept_meetings + ctx.new_meetings
         if dest_key == "create_new":
             # For create_new, only prune actions belonging to the target company
             other_actions = [a for a in current_state.get("actions", []) if a.get("company") != target_company]
@@ -958,6 +1080,8 @@ def process_dataset_import(
             current_state["decisions"] = current_state.get("decisions", []) + ctx.new_decisions
         if ctx.new_priorities:
             current_state["priorities"] = current_state.get("priorities", []) + ctx.new_priorities
+        if ctx.new_meetings:
+            current_state["meetings"] = current_state.get("meetings", []) + ctx.new_meetings
 
     # Ensure companies and statuses are up to date
     current_state = sync_companies_and_statuses(current_state)
@@ -965,6 +1089,7 @@ def process_dataset_import(
     metrics["actions_total"] = len(current_state.get("actions", []))
     metrics["decisions_total"] = len(current_state.get("decisions", []))
     metrics["priorities_total"] = len(current_state.get("priorities", []))
+    metrics["meetings_total"] = len(current_state.get("meetings", []))
 
     return current_state, metrics
 

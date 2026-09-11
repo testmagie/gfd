@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Prevent flash of wrong theme -->
+  <script>
+    (function(){
+      var t = localStorage.getItem('gcc_theme');
+      if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sign In — Command Center</title>
@@ -20,6 +28,11 @@
   </style>
 </head>
 <body>
+  <!-- Theme Toggle Floating Button -->
+  <button id="theme-toggle-btn" class="login-theme-toggle" title="Toggle Light / Dark Mode" aria-label="Toggle Light / Dark Mode">
+    <span class="theme-icon-sun"><i data-lucide="sun"></i></span>
+    <span class="theme-icon-moon"><i data-lucide="moon"></i></span>
+  </button>
 
   <!-- Animated Background -->
   <div class="login-bg">
@@ -221,6 +234,17 @@
         if (e.key === 'Enter') $('login-form').requestSubmit();
       });
     });
+
+    // ── Theme Toggle ──────────────────────────────────────────────────
+    const themeBtn = $('theme-toggle-btn');
+    if (themeBtn) {
+      themeBtn.addEventListener('click', () => {
+        const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+        const next = cur === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('gcc_theme', next);
+      });
+    }
   </script>
 
 </body>
